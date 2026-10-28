@@ -81,9 +81,33 @@ jobs:
           DEBT=$(get sqale_index)
           CX=$(get complexity)
 
-          RESP_V=$(curl -s -u "$SONAR_TOKEN:" \
-            "$API/issues/search?componentKeys=$PROJECT_KEY&$SCOPE&types=VULNERABILITY&severities=CRITICAL,BLOCKER&resolved=false&ps=1")
-          VULN=$(echo "$RESP_V" | jq -r '.total // "N/A"')
+          # ---- Búsqueda de Issues y Severidades via Facets ----
+          RESP_FACETS=$(curl -s -u "$SONAR_TOKEN:" \
+            "$API/issues/search?componentKeys=$PROJECT_KEY&$SCOPE&resolved=false&facets=severities&ps=1")
+
+          get_sev() {
+            echo "$RESP_FACETS" | jq -r ".facets[]? | select(.property==\"severities\") | .values[]? | select(.val==\"$1\") | .count // 0"
+          }
+
+          BLOCKER=$(get_sev "BLOCKER")
+          CRITICAL=$(get_sev "CRITICAL")
+          MAJOR=$(get_sev "MAJOR")
+          MINOR=$(get_sev "MINOR")
+          INFO=$(get_sev "INFO")
+
+          BLOCKER=${BLOCKER:-0}
+          CRITICAL=${CRITICAL:-0}
+          MAJOR=${MAJOR:-0}
+          MINOR=${MINOR:-0}
+          INFO=${INFO:-0}
+
+          TOTAL_ISSUES=$((BLOCKER + CRITICAL + MAJOR + MINOR + INFO))
+
+          # RESP_V=$(curl -s -u "$SONAR_TOKEN:" \
+          #  "$API/issues/search?componentKeys=$PROJECT_KEY&$SCOPE&types=VULNERABILITY&severities=CRITICAL,BLOCKER&resolved=false&ps=1")
+          # VULN=$(echo "$RESP_V" | jq -r '.total // "N/A"')
+
+          VULN=$((BLOCKER + CRITICAL))
 
           ok()  { echo "✅"; }
           bad() { echo "❌"; }
@@ -121,6 +145,16 @@ jobs:
             echo "| Deuda técnica | ${DEBT:-N/A} min | ≤ ${MAX_DEBT_MIN} min | $DEBT_S |"
             echo "| Complejidad ciclomática | ${CX:-N/A} | < ${MAX_COMPLEXITY} | $CX_S |"
             echo "| Vulnerabilidades críticas | $VULN | 0 | $VULN_S |"
+            echo ""
+            echo "### 📊 Reporte de Severidades (Issues Activos)"
+            echo "| Severidad | Cantidad | Estado |"
+            echo "|---|---|---|"
+            echo "| 🔴 **Blocker** | $BLOCKER | $([ "$BLOCKER" -eq 0 ] && ok || bad) |"
+            echo "| 🟠 **Critical** | $CRITICAL | $([ "$CRITICAL" -eq 0 ] && ok || bad) |"
+            echo "| 🟡 **Major** | $MAJOR | ℹ️ |"
+            echo "| 🔵 **Minor** | $MINOR | ℹ️ |"
+            echo "| ⚪ **Info** | $INFO | ℹ️ |"
+            echo "| **Total Issues** | **$TOTAL_ISSUES** | |"
             echo ""
             echo "[Ver en SonarCloud](https://sonarcloud.io/project/overview?id=$PROJECT_KEY)"
           } >> "$GITHUB_STEP_SUMMARY"
