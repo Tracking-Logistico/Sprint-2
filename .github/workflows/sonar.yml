@@ -8,80 +8,181 @@ on:
       - preparetest_sprint2
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   PROJECT_KEY: Tracking-Logistico_Sprint-2
-  MIN_COVERAGE: 65        # % cobertura mínima
-  MAX_DEBT_MIN: 960       # 2 días = 2 x 8 h x 60 min
-  MAX_COMPLEXITY: 50      # debe ser menor a este valor
+  MIN_COVERAGE: 65
+  MAX_DEBT_MIN: 960
+  MAX_COMPLEXITY: 50
 
 jobs:
   build-and-analyze:
     name: Build and Analyze (monorepo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: maven
+
+      - name: Compilar y ejecutar pruebas de todas las APIs
+        run: mvn -B -ntp clean install
+
+      - name: Guardar reportes de pruebas y cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-pruebas-cobertura
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+            **/target/site/jacoco/**
+            **/target/site/jacoco-aggregate/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Validar configuración de SonarCloud
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::error::Falta configurar el secreto SONAR_TOKEN en Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Analizar con SonarCloud
+        id: sonar
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >-
+          mvn -B -ntp
+          org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar
           -Dsonar.organization=tracklog20262
           -Dsonar.projectKey=Tracking-Logistico_Sprint-2
           -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml,**/target/site/jacoco-aggregate/jacoco.xml
           -Dsonar.qualitygate.wait=true
-          -Dsonar.qualitygate.wait=true
+          -Dsonar.qualitygate.timeout=300
 
-      - name: Quality gates en el Summary (informativo, no bloquea)
-        if: always()
+      - name: Mostrar resultados de calidad en Summary
+        if: ${{ always() && (steps.sonar.outcome == 'success' || steps.sonar.outcome == 'failure') }}
         continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           EVENT_NAME: ${{ github.event_name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           BRANCH: ${{ github.ref_name }}
+        shell: bash
         run: |
-          API=https://sonarcloud.io/api
+          API="https://sonarcloud.io/api"
 
-          # PR -> pullRequest ; push -> branch
           if [ "$EVENT_NAME" = "pull_request" ]; then
             SCOPE="pullRequest=$PR_NUMBER"
           else
             SCOPE="branch=$BRANCH"
           fi
 
-          # ---- Estado general del Quality Gate ----
-          RESP_G=$(curl -s -u "$SONAR_TOKEN:" \
+          RESP_G=$(curl --fail --silent --show-error \
+            --connect-timeout 15 --max-time 60 \
+            -u "$SONAR_TOKEN:" \
             "$API/qualitygates/project_status?projectKey=$PROJECT_KEY&$SCOPE")
+
           if ! echo "$RESP_G" | jq -e '.projectStatus' >/dev/null 2>&1; then
-            echo "::warning::No se pudo leer el Quality Gate: $RESP_G"
+            echo "::warning::No se pudo consultar el Quality Gate."
+            echo "No se pudo consultar el Quality Gate de SonarCloud. Revisa el paso de análisis." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+
           GATE=$(echo "$RESP_G" | jq -r '.projectStatus.status')
 
-          # ---- Métricas generales ----
-          RESP=$(curl -s -u "$SONAR_TOKEN:" \
+          RESP=$(curl --fail --silent --show-error \
+            --connect-timeout 15 --max-time 60 \
+            -u "$SONAR_TOKEN:" \
             "$API/measures/component?component=$PROJECT_KEY&$SCOPE&metricKeys=coverage,sqale_index,complexity")
-          M=$(echo "$RESP" | jq -r '.component.measures[]? | "\(.metric)=\(.value)"')
-          get() { echo "$M" | grep "^$1=" | cut -d= -f2; }
+
+          M=$(echo "$RESP" | jq -r \
+            '.component.measures[]? | "\(.metric)=\(.value)"')
+
+          get() {
+            echo "$M" | awk -F= -v key="$1" '$1 == key { print $2 }'
+          }
 
           COV=$(get coverage)
           DEBT=$(get sqale_index)
           CX=$(get complexity)
 
-          RESP_V=$(curl -s -u "$SONAR_TOKEN:" \
+          RESP_V=$(curl --fail --silent --show-error \
+            --connect-timeout 15 --max-time 60 \
+            -u "$SONAR_TOKEN:" \
             "$API/issues/search?componentKeys=$PROJECT_KEY&$SCOPE&types=VULNERABILITY&severities=CRITICAL,BLOCKER&resolved=false&ps=1")
+
           VULN=$(echo "$RESP_V" | jq -r '.total // "N/A"')
 
-          ok()  { echo "✅"; }
-          bad() { echo "❌"; }
-          na()  { echo "➖"; }
+          COV_S="➖"
+          DEBT_S="➖"
+          CX_S="➖"
+          VULN_S="➖"
 
           if [ -n "$COV" ]; then
-            COV_S=$(awk "BEGIN{exit !($COV >= $MIN_COVERAGE)}" && ok || bad)
-          else COV_S=$(na); fi
-          if [ -n "$DEBT" ]; then
-            DEBT_S=$([ "$DEBT" -le "$MAX_DEBT_MIN" ] && ok || bad)
-          else DEBT_S=$(na); fi
-          if [ -n "$CX" ]; then
-            CX_S=$([ "$CX" -lt "$MAX_COMPLEXITY" ] && ok || bad)
-          else CX_S=$(na); fi
-          if [ "$VULN" = "N/A" ]; then VULN_S=$(na)
-          else VULN_S=$([ "$VULN" = "0" ] && ok || bad); fi
+            if awk -v value="$COV" -v limit="$MIN_COVERAGE" \
+              'BEGIN { exit !(value >= limit) }'; then
+              COV_S="✅"
+            else
+              COV_S="❌"
+            fi
+          fi
 
-          if [ "$GATE" = "OK" ]; then GATE_S="✅ PASSED"; else GATE_S="❌ $GATE"; fi
+          if [ -n "$DEBT" ]; then
+            if awk -v value="$DEBT" -v limit="$MAX_DEBT_MIN" \
+              'BEGIN { exit !(value <= limit) }'; then
+              DEBT_S="✅"
+            else
+              DEBT_S="❌"
+            fi
+          fi
+
+          if [ -n "$CX" ]; then
+            if awk -v value="$CX" -v limit="$MAX_COMPLEXITY" \
+              'BEGIN { exit !(value < limit) }'; then
+              CX_S="✅"
+            else
+              CX_S="❌"
+            fi
+          fi
+
+          if [ "$VULN" != "N/A" ]; then
+            if [ "$VULN" = "0" ]; then
+              VULN_S="✅"
+            else
+              VULN_S="❌"
+            fi
+          fi
+
+          if [ "$GATE" = "OK" ]; then
+            GATE_S="✅ PASSED"
+          else
+            GATE_S="❌ $GATE"
+          fi
 
           {
             echo "## Resultado SonarQube Cloud"
@@ -91,8 +192,11 @@ jobs:
             echo "### Condiciones del Quality Gate"
             echo "| Métrica | Valor | Umbral | Estado |"
             echo "|---|---|---|---|"
-            echo "$RESP_G" | jq -r '.projectStatus.conditions[]? |
-              "| \(.metricKey) | \(.actualValue // "N/A") | \(.errorThreshold // "-") | \(if .status=="OK" then "✅" else "❌" end) |"'
+
+            echo "$RESP_G" | jq -r \
+              '.projectStatus.conditions[]? |
+              "| \(.metricKey) | \(.actualValue // "N/A") | \(.errorThreshold // "-") | \(if .status == "OK" then "✅" else "❌" end) |"'
+
             echo ""
             echo "### Criterios del proyecto"
             echo "| Criterio | Valor | Meta | Estado |"
@@ -102,11 +206,13 @@ jobs:
             echo "| Complejidad ciclomática | ${CX:-N/A} | < ${MAX_COMPLEXITY} | $CX_S |"
             echo "| Vulnerabilidades críticas | $VULN | 0 | $VULN_S |"
             echo ""
+            echo "Los criterios de esta tabla son informativos."
+            echo "El bloqueo del análisis depende del Quality Gate configurado en SonarCloud."
+            echo ""
             echo "[Ver en SonarCloud](https://sonarcloud.io/project/overview?id=$PROJECT_KEY)"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$GATE" != "OK" ] || echo "$COV_S$DEBT_S$CX_S$VULN_S" | grep -q "❌"; then
-            echo "::warning title=Quality gates::Algunos criterios no se cumplen. Revisa la tabla en Summary."
+          if [ "$GATE" != "OK" ] || \
+            [[ "$COV_S$DEBT_S$CX_S$VULN_S" == *"❌"* ]]; then
+            echo "::warning::Algunos criterios no se cumplen. Revisa Summary."
           fi
-
-          exit 0
