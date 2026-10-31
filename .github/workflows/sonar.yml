@@ -80,7 +80,6 @@ jobs:
           -Dsonar.organization=tracklog20262
           -Dsonar.projectKey=Tracking-Logistico_Sprint-2
           -Dsonar.host.url=https://sonarcloud.io
-          -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml,**/target/site/jacoco-aggregate/jacoco.xml
           -Dsonar.qualitygate.wait=true
           -Dsonar.qualitygate.timeout=300
 

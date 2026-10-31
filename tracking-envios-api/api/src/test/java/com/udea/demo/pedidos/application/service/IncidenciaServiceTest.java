@@ -82,6 +82,9 @@ class IncidenciaServiceTest {
             assertThat(r.incidencia().reportadoPorUsuarioId()).isEqualTo(OPERADOR_USUARIO);
             assertThat(r.incidencia().latitud()).isEqualTo(6.2442);
             assertThat(r.incidencia().fecha()).isNotNull();
+            assertThat(r.incidencia().fecha().getOffset()).isEqualTo(java.time.ZoneOffset.UTC);
+            assertThat(r.incidencia().fecha().toInstant()).isCloseTo(java.time.Instant.now(),
+                    org.assertj.core.api.Assertions.within(5, java.time.temporal.ChronoUnit.SECONDS));
             verify(actores).operadorActualId();
             verify(pedidos).saveAndFlush(pedido);
             verify(historial).registrar(eq(PEDIDO_ID), eq(OPERADOR_USUARIO), eq(RegistroHistorialPedido.INCIDENCIA),

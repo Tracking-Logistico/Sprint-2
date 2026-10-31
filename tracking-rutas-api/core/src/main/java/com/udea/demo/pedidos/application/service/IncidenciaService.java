@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 
@@ -76,7 +77,7 @@ public class IncidenciaService implements IncidenciaServiceI {
             throw new ConflictoConcurrenciaException();
 
         EstadoPedido anterior = pedido.getEstado();
-        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime ahora = LocalDateTime.now(ZoneOffset.UTC);
         EstadoPedido resultante = pedido.registrarIncidencia(tipo, maxIntentos, ahora,
                 calendario.sumarDiasHabiles(ahora, plazoDireccionDiasHabiles));
         pedidos.saveAndFlush(pedido);
