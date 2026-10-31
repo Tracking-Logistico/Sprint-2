@@ -10,4 +10,4 @@ Este proyecto conserva su `docker-compose.yml` individual para desarrollo, pero 
 - Las mismas variables `DB_*`, `RABBITMQ_*`, `MAIL_*`, `AUTH_*` siguen siendo compatibles.
 - La API de identidad es la única que aplica migraciones Flyway, previa a las otras.
 
-Las APIs siguen autorizando cada acción desde su `SecurityConfig`, mientras el orquestador conserva rutas HTTP y cabeceras sin cambiar la lógica.
+Las APIs siguen autorizando cada acción desde su `SecurityConfig`, mientras el orquestador conserva rutas HTTP y cabeceras sin cambiar la lógica....
