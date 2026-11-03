@@ -14,7 +14,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -38,11 +37,12 @@ class InicioSesionUseCaseTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private GestionSesionesUseCase sesiones;
 
-    @InjectMocks
     private InicioSesionUseCase useCase;
 
     @BeforeEach
     void setUp() {
+        when(passwordEncoder.encode(anyString())).thenReturn("hash-dummy-generado");
+        useCase = new InicioSesionUseCase(usuarioRepository, intentoRepository, passwordEncoder, sesiones);
         ReflectionTestUtils.setField(useCase, "ventanaIntentosMinutos", 10L);
         ReflectionTestUtils.setField(useCase, "minutosBloqueo", 15L);
     }
@@ -66,13 +66,15 @@ class InicioSesionUseCaseTest {
         when(intentoRepository.findFirstByEmailAndBloqueadoHastaAfterOrderByBloqueadoHastaDesc(eq("desconocido@test.com"), any()))
                 .thenReturn(null);
         when(usuarioRepository.findByEmail("desconocido@test.com")).thenReturn(Optional.empty());
-        when(passwordEncoder.matches(eq("Pass123!"), anyString())).thenReturn(false);
+        when(passwordEncoder.matches("Pass123!", "hash-dummy-generado")).thenReturn(false);
         when(intentoRepository.countByEmailAndIntentadoEnAfter(eq("desconocido@test.com"), any())).thenReturn(0L);
 
         assertThatThrownBy(() -> useCase.iniciarSesion(req, "127.0.0.1", "Mozilla"))
                 .isInstanceOf(CredencialesInvalidasException.class);
 
         verify(intentoRepository).save(any(IntentoInicioSesion.class));
+        verify(passwordEncoder).matches("Pass123!", "hash-dummy-generado");
+        verify(passwordEncoder, times(1)).encode(anyString());
     }
 
     @Test
@@ -127,4 +129,21 @@ class InicioSesionUseCaseTest {
         assertThat(res.accessToken()).isEqualTo("acc");
         verify(intentoRepository).deleteByEmail("usuario@test.com");
     }
+    @Test
+    @DisplayName("Reutiliza el hash dummy y nunca autentica a un usuario inexistente")
+    void usuarioInexistenteReutilizaHashSinAutenticar() {
+        var request = new LoginRequestDTO("ausente@test.com", "cualquier-entrada");
+        when(usuarioRepository.findByEmail(request.email())).thenReturn(Optional.empty());
+        when(passwordEncoder.matches(request.password(), "hash-dummy-generado")).thenReturn(true);
+
+        for (int intento = 0; intento < 2; intento++) {
+            assertThatThrownBy(() -> useCase.iniciarSesion(request, "127.0.0.1", "test"))
+                    .isInstanceOf(CredencialesInvalidasException.class);
+        }
+
+        verify(passwordEncoder, times(1)).encode(anyString());
+        verify(passwordEncoder, times(2)).matches(request.password(), "hash-dummy-generado");
+        verifyNoInteractions(sesiones);
+    }
+
 }

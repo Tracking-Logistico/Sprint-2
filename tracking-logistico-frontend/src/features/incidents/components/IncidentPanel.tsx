@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getApiError } from "@/lib/api";
 import type { IncidentType, OrderStatus } from "@/types/api";
 import { useIncidents } from "../hooks/useIncidents";
+import { formatIncidentDate } from "../utils/incidentDate";
 
 const inputClass =
   "h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10";
@@ -257,7 +258,7 @@ export function IncidentPanel({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-medium">{incident.descripcionTipo}</p>
-                  <Badge>{new Date(incident.fecha).toLocaleString()}</Badge>
+                  <Badge>{formatIncidentDate(incident.fecha)}</Badge>
                 </div>
                 {incident.comentario && (
                   <p className="mt-2 text-muted-foreground">

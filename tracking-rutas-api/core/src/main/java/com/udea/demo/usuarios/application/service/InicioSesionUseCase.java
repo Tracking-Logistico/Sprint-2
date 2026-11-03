@@ -1,6 +1,7 @@
 package com.udea.demo.usuarios.application.service;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +25,7 @@ import com.udea.demo.usuarios.interfaces.persistence.UsuarioRepository;
 public class InicioSesionUseCase {
     private static final Logger log = LoggerFactory.getLogger(InicioSesionUseCase.class);
     private static final int MAX_INTENTOS = 5;
-    private static final String DUMMY_PASSWORD_HASH =
-            "$2a$10$7EqJtq98hPqEX7fNZaFWoOht7e1Zrh9iWv6eG2QGfT.XU/PqmEw1y";
+    private final String dummyPasswordHash;
     private final UsuarioRepository usuarioRepository;
     private final IntentoInicioSesionRepository intentoRepository;
     private final PasswordEncoder passwordEncoder;
@@ -42,6 +42,7 @@ public class InicioSesionUseCase {
         this.usuarioRepository = usuarioRepository;
         this.intentoRepository = intentoRepository;
         this.passwordEncoder = passwordEncoder;
+        this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
         this.sesiones = sesiones;
     }
 
@@ -55,15 +56,15 @@ public class InicioSesionUseCase {
         }
 
         Usuario usuario = usuarioRepository.findByEmail(request.email()).orElse(null);
-    String hashParaValidar = usuario == null ? DUMMY_PASSWORD_HASH : usuario.getPassword();
-    boolean passwordCorrecta = passwordEncoder.matches(request.password(), hashParaValidar);
+        String hashParaValidar = usuario == null ? dummyPasswordHash : usuario.getPassword();
+        boolean passwordCorrecta = passwordEncoder.matches(request.password(), hashParaValidar);
         boolean estadoLoginValido = usuario != null && (usuario.getEstado() == EstadoUsuario.ACTIVO
                 || usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION
                 || (usuario.getRol() == Rol.CLIENTE
                     && usuario.getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION));
         if (usuario == null || !estadoLoginValido
                 || !Boolean.TRUE.equals(usuario.getActivo())
-        || !passwordCorrecta) {
+                || !passwordCorrecta) {
             registrarFallo(request.email(), usuario, ahora, ip, userAgent);
             throw new CredencialesInvalidasException();
         }
