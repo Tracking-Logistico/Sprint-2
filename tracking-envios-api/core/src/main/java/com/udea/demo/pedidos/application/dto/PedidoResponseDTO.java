@@ -38,8 +38,28 @@ public record PedidoResponseDTO(
     String remitenteTelefono,
     LocalDateTime fechaEstimadaEntrega,
     String indicacionesAcceso,                        // ← nuevo
-    java.time.LocalDate fechaEntregaReprogramada  
+    java.time.LocalDate fechaEntregaReprogramada,
+    String numeroTrackingOrigenDevolucion,
+    String referenciaDevolucion
 ) {
+    public PedidoResponseDTO(Long id, String numeroPedido, Long clienteId, String direccionOrigen,
+            String direccionDestino, String descripcionPaquete, Double pesoKg, Double largoCm, Double anchoCm,
+            Double altoCm, TipoServicio tipoServicio, Prioridad prioridadSugerida, Prioridad prioridadConfirmada,
+            EstadoPedido estado, String observacionesValidacion, Long operadorValidadorId, LocalDateTime fechaCreacion,
+            LocalDateTime fechaValidacion, String numeroTracking, LocalDateTime fechaActivacionTracking,
+            Boolean etiquetaImpresa, LocalDateTime fechaImpresionEtiqueta, String destinatarioNombre,
+            String destinatarioTelefono, String justificacionPrioridad, String ciudadOrigen, String ciudadDestino,
+            String codigoPostalOrigen, String codigoPostalDestino, String remitenteNombre, String remitenteEmail,
+            String remitenteTelefono, LocalDateTime fechaEstimadaEntrega, String indicacionesAcceso,
+            java.time.LocalDate fechaEntregaReprogramada) {
+        this(id, numeroPedido, clienteId, direccionOrigen, direccionDestino, descripcionPaquete, pesoKg, largoCm,
+                anchoCm, altoCm, tipoServicio, prioridadSugerida, prioridadConfirmada, estado, observacionesValidacion,
+                operadorValidadorId, fechaCreacion, fechaValidacion, numeroTracking, fechaActivacionTracking,
+                etiquetaImpresa, fechaImpresionEtiqueta, destinatarioNombre, destinatarioTelefono, justificacionPrioridad,
+                ciudadOrigen, ciudadDestino, codigoPostalOrigen, codigoPostalDestino, remitenteNombre, remitenteEmail,
+                remitenteTelefono, fechaEstimadaEntrega, indicacionesAcceso, fechaEntregaReprogramada, null, null);
+    }
+
     public PedidoResponseDTO(Long id, String numeroPedido, Long clienteId, String direccionOrigen,
             String direccionDestino, String descripcionPaquete, Double pesoKg, Double largoCm, Double anchoCm,
             Double altoCm, TipoServicio tipoServicio, Prioridad prioridadSugerida, Prioridad prioridadConfirmada,
@@ -50,6 +70,6 @@ public record PedidoResponseDTO(
                 altoCm, tipoServicio, prioridadSugerida, prioridadConfirmada, estado, observacionesValidacion,
                 operadorValidadorId, fechaCreacion, fechaValidacion, numeroTracking, fechaActivacionTracking,
                 etiquetaImpresa, fechaImpresionEtiqueta, null, null, null,
-                null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null);
     }
 }

@@ -2,8 +2,10 @@ package com.udea.demo.usuarios.application.service;
 
 import com.udea.demo.compartido.eventos.EventoIntegracion;
 import com.udea.demo.pedidos.domain.event.CheckpointRegistradoEvent;
+import com.udea.demo.pedidos.domain.event.DevolucionCreadaEvent;
 import com.udea.demo.pedidos.domain.event.EntregaConfirmadaEvent;
 import com.udea.demo.pedidos.domain.event.EntregaReprogramadaEvent;
+import com.udea.demo.pedidos.domain.event.EnvioGestionEvent;
 import com.udea.demo.pedidos.domain.event.IncidenciaRegistradaEvent;
 import com.udea.demo.pedidos.domain.model.EstadoPedido;
 import com.udea.demo.pedidos.domain.model.EtapaCheckpoint;
@@ -22,6 +24,14 @@ import java.util.Optional;
 public class HitoExtractor {
 
     public Optional<HitoNotificacion> extraer(EventoIntegracion evento) {
+        if (evento instanceof EnvioGestionEvent e) {
+            return Optional.of(new HitoNotificacion(e.pedidoId(), e.numeroTracking(), e.clienteId(),
+                    e.estado(), e.motivo(), e.tipo()));
+        }
+        if (evento instanceof DevolucionCreadaEvent e) {
+            return Optional.of(new HitoNotificacion(e.pedidoId(), e.numeroTracking(), e.clienteId(),
+                    EstadoPedido.CREADO, e.mensajeCliente(), e.tipo()));
+        }
         if (evento instanceof EntregaConfirmadaEvent e) {
             return Optional.of(new HitoNotificacion(
                     e.pedidoId(), e.numeroTracking(), e.clienteId(),

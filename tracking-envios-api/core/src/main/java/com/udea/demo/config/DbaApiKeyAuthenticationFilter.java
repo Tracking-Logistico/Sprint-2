@@ -24,7 +24,11 @@ public class DbaApiKeyAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        if (request.getRequestURI().startsWith("/api/v1/admin/")) {
+        String requestUri = request.getRequestURI();
+        boolean recursoDba = requestUri.startsWith("/api/v1/admin/")
+                || requestUri.startsWith("/api/v1/geografia/")
+                || requestUri.matches("^/api/v1/pedidos/\\d+/ubicaciones/?$");
+        if (recursoDba) {
             String supplied = request.getHeader("X-DBA-Key");
             if (configuredKey != null && !configuredKey.isBlank() && supplied != null
                     && MessageDigest.isEqual(configuredKey.getBytes(StandardCharsets.UTF_8),

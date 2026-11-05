@@ -2,6 +2,8 @@ package com.udea.demo.pedidos.infrastructure.controller;
 
 import com.udea.demo.pedidos.application.dto.*;
 import com.udea.demo.pedidos.interfaces.services.PedidoServiceI;
+import com.udea.demo.pedidos.application.service.TrazabilidadUbicacionService;
+import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.data.domain.Page;
@@ -23,8 +25,14 @@ import java.util.List;
 @RequestMapping("/api/v1/pedidos")
 public class PedidoController {
     private final PedidoServiceI pedidoService;
+    private TrazabilidadUbicacionService trazabilidad;
 
     public PedidoController(PedidoServiceI pedidoService) { this.pedidoService = pedidoService; }
+
+    @Autowired
+    public void setTrazabilidad(TrazabilidadUbicacionService trazabilidad) {
+        this.trazabilidad = trazabilidad;
+    }
 
     @PostMapping
     public ResponseEntity<PedidoResponseDTO> recibirPedido(@Valid @RequestBody RecibirPedidoRequestDTO dto) {
@@ -83,7 +91,8 @@ public class PedidoController {
 
     @GetMapping("/mios/tracking/{numeroTracking}")
     public ResponseEntity<SeguimientoClienteResponseDTO> obtenerSeguimientoMio(@PathVariable String numeroTracking) {
-        return ResponseEntity.ok(pedidoService.obtenerSeguimientoCliente(numeroTracking));
+        SeguimientoClienteResponseDTO seguimiento = pedidoService.obtenerSeguimientoCliente(numeroTracking);
+        return ResponseEntity.ok(seguimiento.conUbicaciones(trazabilidad.consultarCliente(numeroTracking)));
     }
 
     @PutMapping("/{id}/validar")
