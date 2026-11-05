@@ -1,6 +1,8 @@
 package com.udea.demo.rutas.application.service;
 
 import com.udea.demo.pedidos.domain.event.DevolucionIniciadaEvent;
+import com.udea.demo.pedidos.domain.event.EnvioGestionEvent;
+import com.udea.demo.pedidos.domain.model.EstadoPedido;
 import com.udea.demo.rutas.domain.model.EstadoParada;
 import com.udea.demo.rutas.domain.model.Ruta;
 import com.udea.demo.rutas.interfaces.persistence.ParadaRutaRepository;
@@ -28,6 +30,18 @@ public class CierreParadaPorDevolucionListener {
         paradas.findByPedidoIdAndEstado(evento.pedidoId(), EstadoParada.PENDIENTE).ifPresent(parada -> {
             Ruta ruta = parada.getRuta();
             ruta.cancelarParada(evento.pedidoId());
+            rutas.save(ruta);
+        });
+    }
+
+    @EventListener
+    public void alPausarOCancelar(EnvioGestionEvent evento) {
+        if (evento.estado() != EstadoPedido.PAUSADO && evento.estado() != EstadoPedido.CANCELADO) return;
+        paradas.findByPedidoIdAndEstado(evento.pedidoId(), EstadoParada.PENDIENTE).ifPresent(parada -> {
+            Ruta ruta = parada.getRuta();
+            if (evento.estado() == EstadoPedido.CANCELADO) {
+                ruta.cancelarParada(evento.pedidoId());
+            }
             rutas.save(ruta);
         });
     }

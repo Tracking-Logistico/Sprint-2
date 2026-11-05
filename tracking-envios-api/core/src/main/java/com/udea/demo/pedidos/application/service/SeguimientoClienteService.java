@@ -43,7 +43,9 @@ public class SeguimientoClienteService {
                 .orElse(null);
         return new SeguimientoClienteResponseDTO(p.getId(), p.getNumeroPedido(), p.getNumeroTracking(),
                 p.getEstado(), p.getFechaEstimadaEntrega(), movimientos, MensajesSeguimientoCliente.estado(p.getEstado()),
-                novedad, p.getFechaEntregaReprogramada(), p.getFechaLimiteVerificacionDireccion());
+                novedad, p.getFechaEntregaReprogramada(), p.getFechaLimiteVerificacionDireccion(),
+                p.getNumeroTrackingOrigenDevolucion(), p.getNumeroTrackingOrigenDevolucion() == null ? null
+                        : "Devolución del envío " + p.getNumeroTrackingOrigenDevolucion());
     }
 
     private Optional<MovimientoSeguimientoResponseDTO> movimiento(HistorialPedido h) {

@@ -100,8 +100,15 @@ public class SecurityConfig {
                                  "/api/v1/auth/password/**", "/api/v1/clientes/registro",
                                  "/api/v1/clientes/verificar", "/api/v1/clientes/verificacion/reenviar").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("DBA")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/geografia/**")
+                    .hasAnyRole("CLIENTE", "OPERADOR", "CONDUCTOR", "DBA")
+                .requestMatchers("/api/v1/geografia/**").hasAnyRole("OPERADOR", "DBA")
                 .requestMatchers("/api/v1/auth/logout").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos").hasRole("CLIENTE")
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos/*/ubicaciones")
+                    .hasAnyRole("OPERADOR", "CONDUCTOR")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/*/ubicaciones")
+                    .hasAnyRole("CLIENTE", "OPERADOR", "CONDUCTOR", "DBA")
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/mios/**").hasRole("CLIENTE")
                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/pedidos/*/corregir").hasRole("CLIENTE")
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos/mios/tracking/*/reprogramacion")
@@ -116,6 +123,9 @@ public class SecurityConfig {
                                  "/api/v1/pedidos/*/validar", "/api/v1/pedidos/*/activar-tracking",
                                  "/api/v1/pedidos/*/estado-logistico", "/api/v1/pedidos/*/etiqueta")
                     .hasRole("OPERADOR")
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos/*/pausar",
+                                 "/api/v1/pedidos/*/reanudar", "/api/v1/pedidos/*/cancelar")
+                    .hasAnyRole("CLIENTE", "OPERADOR", "CONDUCTOR")
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos/*/checkpoints",
                                  "/api/v1/pedidos/checkpoints/sincronizacion").hasRole("CONDUCTOR")
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/checkpoints/mios/**")

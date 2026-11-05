@@ -61,6 +61,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
                                      @Param("fechaHasta") LocalDateTime fechaHasta,
                                      Pageable pageable);
     Optional<Pedido> findByNumeroTracking(String numeroTracking);
+    Optional<Pedido> findByPedidoOrigenDevolucionId(Long pedidoOrigenDevolucionId);
     boolean existsByNumeroTracking(String numeroTracking);
     boolean existsByNumeroPedido(String numeroPedido);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -78,4 +79,14 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
         """)
     List<Long> findIdsConPlazoDireccionVencido(@Param("estado") EstadoPedido estado,
                                                @Param("ahora") LocalDateTime ahora);
+
+    @Query("""
+        select p.id from Pedido p
+        where p.estado = :estado and p.intentosEntregaFallidos >= :intentosMinimos
+          and p.fechaEntregaFallida < :fechaLimite
+        order by p.fechaEntregaFallida asc
+        """)
+    List<Long> findIdsConPlazoReprogramacionVencido(@Param("estado") EstadoPedido estado,
+                                                    @Param("intentosMinimos") int intentosMinimos,
+                                                    @Param("fechaLimite") LocalDateTime fechaLimite);
 }
