@@ -14,6 +14,12 @@ public interface ParadaRutaRepository extends JpaRepository<ParadaRuta, Long> {
 
     Optional<ParadaRuta> findByPedidoIdAndEstado(Long pedidoId, EstadoParada estado);
 
+    @Query("select c.usuario.id from ParadaRuta p, Conductor c " +
+           "where p.ruta.conductorId = c.id and p.pedidoId = :pedidoId and p.estado = :estado")
+    Optional<Long> findConductorUsuarioIdByPedidoIdAndEstado(
+        @org.springframework.data.repository.query.Param("pedidoId") Long pedidoId,
+        @org.springframework.data.repository.query.Param("estado") EstadoParada estado);
+
     @Query("select case when count(p) > 0 then true else false end from ParadaRuta p, Conductor c " +
            "where p.ruta.conductorId = c.id and c.usuario.id = :usuarioId " +
            "and p.pedidoId = :pedidoId and p.estado = :estado")

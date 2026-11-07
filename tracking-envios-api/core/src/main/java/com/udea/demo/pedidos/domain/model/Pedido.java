@@ -52,6 +52,9 @@ public class Pedido {
     @Column(name = "fecha_limite_verificacion_direccion") private LocalDateTime fechaLimiteVerificacionDireccion;
     @Column(name = "fecha_ultima_incidencia") private LocalDateTime fechaUltimaIncidencia;
     @Column(name = "indicaciones_acceso", length = 500) private String indicacionesAcceso;
+    @Enumerated(EnumType.STRING) @Column(name = "estado_antes_pausa", length = 40) private EstadoPedido estadoAntesPausa;
+    @Column(name = "id_pedido_origen_devolucion", unique = true) private Long pedidoOrigenDevolucionId;
+    @Column(name = "numero_tracking_origen_devolucion", length = 50) private String numeroTrackingOrigenDevolucion;
 
     private static final Set<EstadoPedido> ESTADOS_EN_ENTREGA =
             EnumSet.of(EstadoPedido.EN_REPARTO, EstadoPedido.ENTREGA_REPROGRAMADA);
@@ -252,6 +255,79 @@ public class Pedido {
         return true;
     }
 
+    public boolean devolverPorPlazoReprogramacionVencido(LocalDateTime ahora, int diasRetencionBodega,
+                                                         int maxIntentosEntrega) {
+        if (estado != EstadoPedido.ENTREGA_FALLIDA || fechaEntregaFallida == null
+                || getIntentosEntregaFallidos() < maxIntentosEntrega - 1
+                || !ahora.toLocalDate().isAfter(fechaEntregaFallida.toLocalDate().plusDays(diasRetencionBodega))) {
+            return false;
+        }
+        this.estado = EstadoPedido.DEVOLUCION_AL_REMITENTE;
+        return true;
+    }
+
+    public void pausar() {
+        if (!estado.esActivoLogistico()) {
+            throw new TransicionEstadoInvalidaException(estado, EstadoPedido.PAUSADO);
+        }
+        this.estadoAntesPausa = estado;
+        this.estado = EstadoPedido.PAUSADO;
+    }
+
+    public void reanudar() {
+        if (estado != EstadoPedido.PAUSADO || estadoAntesPausa == null) {
+            throw new TransicionEstadoInvalidaException(estado, EstadoPedido.CREADO);
+        }
+        this.estado = estadoAntesPausa;
+        this.estadoAntesPausa = null;
+    }
+
+    public void cancelar() {
+        if (estado == null || estado.esFinal()) {
+            throw new TransicionEstadoInvalidaException(estado, EstadoPedido.CANCELADO);
+        }
+        this.estado = EstadoPedido.CANCELADO;
+        this.estadoAntesPausa = null;
+    }
+
+    public static Pedido crearDevolucion(Pedido original, String numeroPedido, String numeroTracking,
+                                         String nombreBodega, String emailBodega, String telefonoBodega,
+                                         String direccionBodega, String ciudadBodega, String codigoPostalBodega,
+                                         LocalDateTime ahora) {
+        Pedido devolucion = Pedido.builder()
+                .numeroPedido(numeroPedido)
+                .clienteId(original.clienteId)
+                .direccionOrigen(direccionBodega)
+                .ciudadOrigen(ciudadBodega)
+                .codigoPostalOrigen(codigoPostalBodega)
+                .direccionDestino(original.direccionOrigen)
+                .ciudadDestino(original.ciudadOrigen)
+                .codigoPostalDestino(original.codigoPostalOrigen)
+                .descripcionPaquete(original.descripcionPaquete)
+                .remitenteNombre(nombreBodega)
+                .remitenteEmail(emailBodega)
+                .remitenteTelefono(telefonoBodega)
+                .destinatarioNombre(original.remitenteNombre)
+                .destinatarioEmail(original.remitenteEmail)
+                .destinatarioTelefono(original.remitenteTelefono)
+                .pesoKg(original.pesoKg)
+                .largoCm(original.largoCm)
+                .anchoCm(original.anchoCm)
+                .altoCm(original.altoCm)
+                .tipoServicio(original.tipoServicio)
+                .prioridadSugerida(original.prioridadSugerida)
+                .prioridadConfirmada(original.prioridadConfirmada)
+                .estado(EstadoPedido.CREADO)
+                .fechaCreacion(ahora)
+                .fechaEstimadaEntrega(estimarEntrega(original.tipoServicio, ahora))
+                .numeroTracking(numeroTracking)
+                .fechaActivacionTracking(ahora)
+                .build();
+        devolucion.pedidoOrigenDevolucionId = original.id;
+        devolucion.numeroTrackingOrigenDevolucion = original.numeroTracking;
+        return devolucion;
+    }
+
     private boolean plazoVerificacionVencido(LocalDateTime ahora) {
         return fechaLimiteVerificacionDireccion != null && ahora.isAfter(fechaLimiteVerificacionDireccion);
     }
@@ -340,6 +416,9 @@ public class Pedido {
     public LocalDateTime getFechaLimiteVerificacionDireccion() { return fechaLimiteVerificacionDireccion; }
     public LocalDateTime getFechaUltimaIncidencia() { return fechaUltimaIncidencia; }
     public String getIndicacionesAcceso() { return indicacionesAcceso; }
+    public EstadoPedido getEstadoAntesPausa() { return estadoAntesPausa; }
+    public Long getPedidoOrigenDevolucionId() { return pedidoOrigenDevolucionId; }
+    public String getNumeroTrackingOrigenDevolucion() { return numeroTrackingOrigenDevolucion; }
     
     public void setIndicacionesAcceso(String indicacionesAcceso) {
         this.indicacionesAcceso = indicacionesAcceso;

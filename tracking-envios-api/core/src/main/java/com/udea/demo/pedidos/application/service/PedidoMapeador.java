@@ -15,7 +15,9 @@ public class PedidoMapeador {
                 p.getNumeroTracking(), p.getFechaActivacionTracking(), p.getEtiquetaImpresa(), p.getFechaImpresionEtiqueta(),
                 p.getDestinatarioNombre(), p.getDestinatarioTelefono(), p.getJustificacionPrioridad(),
                 p.getCiudadOrigen(), p.getCiudadDestino(), p.getCodigoPostalOrigen(), p.getCodigoPostalDestino(),
-                p.getRemitenteNombre(), p.getRemitenteEmail(), p.getRemitenteTelefono(), p.getFechaEstimadaEntrega(), p.getIndicacionesAcceso(), p.getFechaEntregaReprogramada());
+                p.getRemitenteNombre(), p.getRemitenteEmail(), p.getRemitenteTelefono(), p.getFechaEstimadaEntrega(),
+                p.getIndicacionesAcceso(), p.getFechaEntregaReprogramada(), p.getNumeroTrackingOrigenDevolucion(),
+                referenciaDevolucion(p));
     }
 
     public PedidoClienteResponseDTO mapCliente(Pedido p) {
@@ -25,6 +27,12 @@ public class PedidoMapeador {
         }
         return new PedidoClienteResponseDTO(p.getId(), p.getNumeroPedido(), p.getNumeroTracking(),
                 p.getRemitenteNombre(), p.getDestinatarioNombre(), p.getEstado(),
-                p.getFechaCreacion(), fechaEstimada);
+                p.getFechaCreacion(), fechaEstimada, p.getNumeroTrackingOrigenDevolucion(),
+                referenciaDevolucion(p));
+    }
+
+    private static String referenciaDevolucion(Pedido p) {
+        return p.getNumeroTrackingOrigenDevolucion() == null ? null
+                : "Devolución del envío " + p.getNumeroTrackingOrigenDevolucion();
     }
 }

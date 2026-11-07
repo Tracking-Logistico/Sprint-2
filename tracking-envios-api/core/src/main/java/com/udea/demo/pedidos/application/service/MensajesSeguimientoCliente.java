@@ -20,6 +20,8 @@ public final class MensajesSeguimientoCliente {
             case DIRECCION_POR_VERIFICAR -> "Necesitamos que confirmes la dirección de entrega";
             case DEVOLUCION_AL_REMITENTE -> "Tu paquete está siendo devuelto al remitente";
             case ENTREGA_FALLIDA_CERRADA -> "La entrega no pudo completarse y el caso fue cerrado";
+            case PAUSADO -> "Tu envío está pausado";
+            case CANCELADO -> "Tu envío fue cancelado";
             case RECHAZADO -> "Tu solicitud de envío no fue aprobada";
             default -> "Tu envío está en proceso";
         };

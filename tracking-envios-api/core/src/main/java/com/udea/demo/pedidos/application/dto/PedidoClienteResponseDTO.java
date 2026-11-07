@@ -11,5 +11,14 @@ public record PedidoClienteResponseDTO(
         String destinatarioNombre,
         EstadoPedido estado,
         LocalDateTime fechaCreacion,
-        LocalDateTime fechaEstimadaEntrega
-) {}
+        LocalDateTime fechaEstimadaEntrega,
+        String numeroTrackingOrigenDevolucion,
+        String referenciaDevolucion
+) {
+    public PedidoClienteResponseDTO(Long id, String numeroPedido, String numeroTracking, String remitenteNombre,
+                                    String destinatarioNombre, EstadoPedido estado, LocalDateTime fechaCreacion,
+                                    LocalDateTime fechaEstimadaEntrega) {
+        this(id, numeroPedido, numeroTracking, remitenteNombre, destinatarioNombre, estado, fechaCreacion,
+                fechaEstimadaEntrega, null, null);
+    }
+}

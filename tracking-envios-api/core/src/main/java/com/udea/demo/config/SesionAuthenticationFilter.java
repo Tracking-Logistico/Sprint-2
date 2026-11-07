@@ -41,11 +41,15 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = bearer(request);
 
-        boolean adminConApiKey = request.getRequestURI().startsWith("/api/v1/admin/")
+        String requestUri = request.getRequestURI();
+        boolean recursoDba = requestUri.startsWith("/api/v1/admin/")
+                || requestUri.startsWith("/api/v1/geografia/")
+                || requestUri.matches("^/api/v1/pedidos/\\d+/ubicaciones/?$");
+        boolean dbaConApiKey = recursoDba
                 && SecurityContextHolder.getContext().getAuthentication() != null
                 && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
                     .anyMatch(a -> "ROLE_DBA".equals(a.getAuthority()));
-        if (token != null && !adminConApiKey) {
+        if (token != null && !dbaConApiKey) {
             sesionRepository.findByAccessTokenHash(AutenticacionService.hash(token)).ifPresent(sesion -> {
                 LocalDateTime ahora = LocalDateTime.now();
                 Rol rol = sesion.getUsuario().getRol();
