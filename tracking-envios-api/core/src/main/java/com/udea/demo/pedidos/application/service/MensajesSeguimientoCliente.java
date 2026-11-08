@@ -23,6 +23,8 @@ public final class MensajesSeguimientoCliente {
             case PAUSADO -> "Tu envío está pausado";
             case CANCELADO -> "Tu envío fue cancelado";
             case RECHAZADO -> "Tu solicitud de envío no fue aprobada";
+            // HU-13 CA-7: lenguaje de cliente, sin códigos internos ni datos del destinatario.
+            case ENTREGA_FALLIDA_VERIFICACION_EDAD -> "No pudimos entregar tu paquete porque no fue posible verificar la mayoría de edad de quien lo recibe; el paquete regresará a nuestra bodega";
             default -> "Tu envío está en proceso";
         };
     }

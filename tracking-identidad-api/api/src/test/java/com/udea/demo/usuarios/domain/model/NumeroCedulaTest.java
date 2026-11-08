@@ -76,8 +76,8 @@ class NumeroCedulaTest {
     void enmascara() {
         NumeroCedula larga = NumeroCedula.de("1000004321");
         NumeroCedula corta = NumeroCedula.de("204321");
-        assertThat(larga.toString()).isEqualTo("******4321").doesNotContain("1000004321");
-        assertThat(corta.enmascarado()).isEqualTo("******4321");
+        assertThat(larga.toString()).isEqualTo("****4321").doesNotContain("1000004321");
+        assertThat(corta.enmascarado()).isEqualTo("****4321");
         assertThat(String.valueOf(larga)).isEqualTo(larga.enmascarado());
     }
 

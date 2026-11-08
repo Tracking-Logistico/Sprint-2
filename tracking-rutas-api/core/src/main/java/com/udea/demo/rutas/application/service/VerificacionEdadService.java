@@ -106,15 +106,24 @@ public class VerificacionEdadService {
                         ? "Mayor de edad verificado" : "Verificación no aprobada", fecha);
 
         if (solicitud.resultado() == ResultadoVerificacionEdad.NO_CUMPLE) {
+            // HU-13 CA-7 (13-BE-05). Todo en esta transacción, que es atómica:
+            //   1. estado: transición de dominio a ENTREGA_FALLIDA_VERIFICACION_EDAD (el log ya está guardado);
+            //   2. historial: usuario, fecha y origen;
+            //   3. evento: DevolucionIniciadaEvent, cuyos listeners síncronos crean el retorno a bodega
+            //      (CrearDevolucionService) y cierran la parada (CierreParadaPorDevolucionListener).
+            // Si algo falla, nada queda aplicado: ni el log, ni el estado, ni el retorno.
             EstadoPedido anterior = pedido.getEstado();
             pedido.fallarPorVerificacionEdad(fecha);
-            parada.getRuta().cancelarParada(pedidoId);
-            rutas.save(parada.getRuta());
             pedidos.save(pedido);
-            historial.registrar(pedidoId, usuarioId, RegistroHistorialPedido.ESTADO_LOGISTICO, "VERIFICACION_EDAD",
+            historial.registrar(pedidoId, usuarioId, RegistroHistorialPedido.ESTADO_LOGISTICO, origen.name(),
                     EstadoPedido.ENTREGA_FALLIDA_VERIFICACION_EDAD.name(), fecha);
             publisher.publishEvent(DevolucionIniciadaEvent.de(pedido, anterior,
                     MotivoDevolucion.VERIFICACION_EDAD_NO_APROBADA));
+            // Respaldo idempotente: si el listener de cierre no corre en este proceso, la parada se cierra aquí.
+            paradas.findByPedidoIdAndEstado(pedidoId, EstadoParada.PENDIENTE).ifPresent(p -> {
+                p.getRuta().cancelarParada(pedidoId);
+                rutas.save(p.getRuta());
+            });
         }
         return respuesta(registro, pedido, false);
     }

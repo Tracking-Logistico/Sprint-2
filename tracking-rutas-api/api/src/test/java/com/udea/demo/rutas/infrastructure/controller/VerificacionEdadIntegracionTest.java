@@ -97,6 +97,10 @@ class VerificacionEdadIntegracionTest {
 
     @AfterEach
     void limpiar() {
+        jdbc.update("DELETE FROM historial_pedidos WHERE id_pedido IN "
+                + "(SELECT id_pedido FROM pedidos WHERE id_pedido_origen_devolucion = ?)", pedidoId);
+        jdbc.update("DELETE FROM pedidos WHERE id_pedido_origen_devolucion = ?", pedidoId);
+        jdbc.update("DELETE FROM incidencias_pedido WHERE id_pedido = ?", pedidoId);
         jdbc.update("DELETE FROM verificacion_edad_log WHERE id_pedido = ?", pedidoId);
         jdbc.update("DELETE FROM eventos_resultado_entrega WHERE id_pedido = ?", pedidoId);
         jdbc.update("DELETE FROM historial_pedidos WHERE id_pedido = ?", pedidoId);
@@ -254,6 +258,70 @@ class VerificacionEdadIntegracionTest {
         assertThat(historial.get("FECHA")).isNotNull();
         assertThat(jdbc.queryForObject("SELECT fecha_verificacion FROM verificacion_edad_log WHERE id_pedido = ?",
                 java.time.OffsetDateTime.class, pedidoId)).isNotNull();
+    }
+
+    private java.util.Map<String, Object> retorno() {
+        return jdbc.queryForMap("SELECT id_pedido, numero_tracking, estado, direccion_destino, direccion_origen, "
+                + "numero_tracking_origen_devolucion, requiere_verificacion_edad FROM pedidos "
+                + "WHERE id_pedido_origen_devolucion = ?", pedidoId);
+    }
+
+    @Test
+    @DisplayName("CA-7 (13-BE-05): NO_CUMPLE crea el retorno a bodega en la misma operación, vinculado y auditado")
+    void retornoABodegaAtomico() throws Exception {
+        verificar(tokenConductor, "{\"resultado\":\"NO_CUMPLE\",\"origen\":\"OFFLINE\"}").andExpect(status().isOk());
+
+        var retorno = retorno();
+        assertThat(retorno.get("NUMERO_TRACKING")).isNotNull();
+        assertThat(retorno.get("NUMERO_TRACKING_ORIGEN_DEVOLUCION"))
+                .isEqualTo(pedidos.findById(pedidoId).orElseThrow().getNumeroTracking());
+        assertThat(retorno.get("DIRECCION_DESTINO")).as("vuelve al origen del remitente").isEqualTo("Carrera sintetica 1");
+        assertThat(retorno.get("DIRECCION_ORIGEN")).as("sale de la bodega").isNotEqualTo("Calle sintetica 2");
+        assertThat(retorno.get("REQUIERE_VERIFICACION_EDAD")).isEqualTo(false);
+        // Auditoría: el estado y el retorno quedan con el conductor, la fecha y el origen.
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM historial_pedidos WHERE id_pedido = ? AND tipo_evento = "
+                + "'ESTADO_LOGISTICO' AND campo_observado = 'OFFLINE' AND detalle = 'ENTREGA_FALLIDA_VERIFICACION_EDAD' "
+                + "AND id_usuario IS NOT NULL", Integer.class, pedidoId)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM historial_pedidos WHERE id_pedido = ? AND tipo_evento = "
+                + "'RETORNO_A_BODEGA' AND id_usuario IS NOT NULL AND detalle = ?", Integer.class, pedidoId,
+                retorno.get("NUMERO_TRACKING"))).isEqualTo(1);
+        assertThat(eventos.stream(com.udea.demo.pedidos.domain.event.DevolucionCreadaEvent.class))
+                .anyMatch(e -> e.toString().contains(String.valueOf(retorno.get("ID_PEDIDO"))));
+    }
+
+    @Test
+    @DisplayName("Idempotencia CA-7: repetir NO_CUMPLE responde duplicado y no crea un segundo retorno")
+    void retornoIdempotente() throws Exception {
+        verificar(tokenConductor, "{\"resultado\":\"NO_CUMPLE\"}").andExpect(status().isOk());
+        verificar(tokenConductor, "{\"resultado\":\"NO_CUMPLE\"}").andExpect(status().isOk())
+                .andExpect(jsonPath("$.duplicado").value(true));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM pedidos WHERE id_pedido_origen_devolucion = ?",
+                Integer.class, pedidoId)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Negativo CA-7: el estado final no se alcanza por un cambio de estado genérico ni se puede abandonar")
+    void estadoFinalBlindado() throws Exception {
+        verificar(tokenConductor, "{\"resultado\":\"NO_CUMPLE\"}").andExpect(status().isOk());
+        Pedido fallido = pedidos.findById(pedidoId).orElseThrow();
+        assertThat(fallido.getEstado().esFinal()).isTrue();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> fallido.cambiarEstadoLogistico(EstadoPedido.EN_REPARTO))
+                .isInstanceOf(RuntimeException.class);
+        entregar(tokenConductor).andExpect(status().is4xxClientError());
+        assertThat(pedidos.findById(pedidoId).orElseThrow().getEstado())
+                .isEqualTo(EstadoPedido.ENTREGA_FALLIDA_VERIFICACION_EDAD);
+    }
+
+    @Test
+    @DisplayName("Sin regresión HU-17: un paquete rechazado ahora también crea su retorno a bodega en la misma operación")
+    void paqueteRechazadoTambienRetorna() throws Exception {
+        jdbc.update("UPDATE pedidos SET requiere_verificacion_edad = FALSE WHERE id_pedido = ?", pedidoId);
+        String json = """
+                {"resultado":"DEVOLUCION_AL_REMITENTE","codigoNovedad":"PAQUETE_RECHAZADO","motivo":"Rechazo sintetico",
+                 "fechaEvento":"%s","idEventoCliente":"%s"}""".formatted(OffsetDateTime.now().minusMinutes(1), UUID.randomUUID());
+        mvc.perform(post(BASE + pedidoId + "/resultado").header("Authorization", "Bearer " + tokenConductor)
+                .contentType(MediaType.APPLICATION_JSON).content(json)).andExpect(status().isOk());
+        assertThat(retorno().get("NUMERO_TRACKING")).isNotNull();
     }
 
     @Test

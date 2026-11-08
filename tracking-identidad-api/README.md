@@ -47,6 +47,12 @@ Las APIs siguen autorizando cada acción desde su `SecurityConfig`, mientras el 
 - Con `NO_CUMPLE`, el envío pasa a `ENTREGA_FALLIDA_VERIFICACION_EDAD` (V27), se cancela la parada y se publica `DevolucionIniciadaEvent` para el retorno a bodega.
 - Un envío 18+ solo se cierra como `ENTREGADO` después de un `CUMPLE`. Lo controla la aplicación y también la BD.
 
+## HU-13: protección de datos (Ley 1581)
+
+Revisión de logs, backups, exportaciones e imágenes, y pendientes: [docs/ley-1581-hu13.md](docs/ley-1581-hu13.md).
+Los logs enmascaran la cédula como `****1234` (`logback-spring.xml`). Los niveles de log de producción se ajustan
+con `LOG_LEVEL_USUARIOS` y `LOG_LEVEL_MESSAGING` (INFO por defecto).
+
 ## Probar migraciones sobre una copia
 
 `scripts/probar-migracion.sh <versión> [--dump respaldo.dump]`, por ejemplo `scripts/probar-migracion.sh 25`. Hace la subida, ejecuta `db/pruebas/VN__verificar.sql`, aplica el rollback dos veces, comprueba que esquema y filas vuelven al estado previo y repite la subida. Si existe `db/pruebas/VN__semilla.sql`, siembra con él los datos sintéticos previos.

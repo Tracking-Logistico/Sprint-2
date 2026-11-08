@@ -145,7 +145,7 @@ class IdentidadPerfilIntegracionTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.registrada").value(true))
                 .andExpect(jsonPath("$.editable").value(false))
-                .andExpect(jsonPath("$.numeroCedulaEnmascarado").value("******" + cedula.substring(cedula.length() - 4)))
+                .andExpect(jsonPath("$.numeroCedulaEnmascarado").value("****" + cedula.substring(cedula.length() - 4)))
                 .andExpect(jsonPath("$.fechaNacimiento").value("1990-05-17"))
                 .andExpect(jsonPath("$.edad").value(edadEsperada))
                 .andReturn().getResponse().getContentAsString();
@@ -156,7 +156,7 @@ class IdentidadPerfilIntegracionTest {
 
         mvc.perform(get(URL).header("Authorization", "Bearer " + tokenCliente))
                 .andExpect(jsonPath("$.edad").value(edadEsperada))
-                .andExpect(jsonPath("$.numeroCedulaEnmascarado").value("******" + cedula.substring(cedula.length() - 4)));
+                .andExpect(jsonPath("$.numeroCedulaEnmascarado").value("****" + cedula.substring(cedula.length() - 4)));
     }
 
     @Test

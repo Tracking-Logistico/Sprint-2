@@ -16,6 +16,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.PersistenceContext;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -53,6 +56,9 @@ public class IdentidadPerfilService implements IdentidadPerfilServiceI {
     private final int maxIntentosPorHora;
     private final Map<Long, Ventana> intentos = new ConcurrentHashMap<>();
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     public IdentidadPerfilService(ActorAuthorizationService actores, UsuarioRepository usuarios,
                                   ProteccionDatosIdentidadService proteccion, AvisoIntentoRegistroService avisos,
                                   @Value("${app.identidad.completar-max-intentos-hora:5}") int maxIntentosPorHora) {
@@ -74,6 +80,10 @@ public class IdentidadPerfilService implements IdentidadPerfilServiceI {
     public IdentidadPerfilResponseDTO completarPropia(CompletarIdentidadRequestDTO dto, String origen) {
         String origenValido = normalizarOrigen(origen);
         Usuario usuario = actores.actorActual();
+        // HU-13 CA-3 / regla 8 (hallazgo de 13-QA-01): bloquear la fila del usuario y recargar su estado ANTES de
+        // comprobar. Sin esto, varias peticiones simultáneas veían "sin identidad" y se sobrescribían. El refresh es
+        // necesario porque el usuario ya está en el contexto de persistencia (cargado sin bloqueo al autenticar).
+        entityManager.refresh(usuario, LockModeType.PESSIMISTIC_WRITE);
         if (usuario.tieneDatosIdentidad()) {
             throw new DatosIdentidadInmutablesException();
         }

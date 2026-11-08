@@ -1,0 +1,9 @@
+# HU-13 CA-8 / Ley 1581: los respaldos y volcados de la BD nunca se versionan. Aunque la cédula y la fecha de
+# nacimiento van cifradas, un volcado contiene otros datos personales (nombre, correo, teléfono, direcciones).
+*.dump
+*.backup
+*.bak
+*.sql.gz
+*.sql.zst
+respaldo_*.sql
+backup_*.sql

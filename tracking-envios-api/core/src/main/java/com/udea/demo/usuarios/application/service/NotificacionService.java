@@ -222,6 +222,7 @@ public class NotificacionService implements NotificacionServiceI {
             case EN_REPARTO -> "en reparto.";
             case ENTREGADO -> "entregado.";
             case ENTREGA_FALLIDA -> "entrega fallida.";
+            case ENTREGA_FALLIDA_VERIFICACION_EDAD -> "entrega no completada (verificación de edad).";
             case ENTREGA_REPROGRAMADA -> "reprogramado.";
             default -> "actualizado.";
         };

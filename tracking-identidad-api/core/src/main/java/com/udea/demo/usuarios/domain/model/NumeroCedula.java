@@ -48,9 +48,12 @@ public final class NumeroCedula {
         return valor;
     }
 
-    /** Muestra solo los últimos 4 dígitos, con un prefijo de longitud fija para no revelar cuántos dígitos tiene. */
+    /**
+     * HU-13 CA-8: muestra solo los últimos 4 dígitos (****1234). El prefijo tiene longitud fija para no revelar
+     * cuántos dígitos tiene la cédula.
+     */
     public String enmascarado() {
-        return "******" + valor.substring(valor.length() - DIGITOS_VISIBLES);
+        return "****" + valor.substring(valor.length() - DIGITOS_VISIBLES);
     }
 
     @Override

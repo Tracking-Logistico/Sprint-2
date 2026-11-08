@@ -61,6 +61,8 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
                                      @Param("fechaHasta") LocalDateTime fechaHasta,
                                      Pageable pageable);
     Optional<Pedido> findByNumeroTracking(String numeroTracking);
+    /** HU-17/HU-13: envío de retorno creado a partir de un envío original (UNIQUE en BD). */
+    Optional<Pedido> findByPedidoOrigenDevolucionId(Long pedidoOrigenDevolucionId);
     boolean existsByNumeroTracking(String numeroTracking);
     boolean existsByNumeroPedido(String numeroPedido);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
