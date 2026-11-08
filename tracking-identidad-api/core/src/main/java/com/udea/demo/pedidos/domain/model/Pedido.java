@@ -52,6 +52,8 @@ public class Pedido {
     @Column(name = "fecha_limite_verificacion_direccion") private LocalDateTime fechaLimiteVerificacionDireccion;
     @Column(name = "fecha_ultima_incidencia") private LocalDateTime fechaUltimaIncidencia;
     @Column(name = "indicaciones_acceso", length = 500) private String indicacionesAcceso;
+    /** HU-13 (V25): verificación de edad 18+ definida por el remitente. Sin setter: usar definirVerificacionEdad. */
+    @Column(name = "requiere_verificacion_edad", nullable = false) private Boolean requiereVerificacionEdad = false;
 
     private static final Set<EstadoPedido> ESTADOS_EN_ENTREGA =
             EnumSet.of(EstadoPedido.EN_REPARTO, EstadoPedido.ENTREGA_REPROGRAMADA);
@@ -340,6 +342,22 @@ public class Pedido {
     public LocalDateTime getFechaLimiteVerificacionDireccion() { return fechaLimiteVerificacionDireccion; }
     public LocalDateTime getFechaUltimaIncidencia() { return fechaUltimaIncidencia; }
     public String getIndicacionesAcceso() { return indicacionesAcceso; }
+    public boolean isRequiereVerificacionEdad() { return Boolean.TRUE.equals(requiereVerificacionEdad); }
+
+    /**
+     * HU-13 CA-4: activa o desactiva la verificación de edad 18+. Solo se puede antes de la validación del
+     * operador: en SOLICITADO sin fecha de validación (al aprobar, validar() deja SOLICITADO con fecha) o en
+     * CORRECCION_SOLICITADA. Que quien lo cambia sea el remitente lo verifica el servicio. El trigger
+     * trg_pedidos_verificacion_edad_editable (V25) impone la misma regla en la BD.
+     */
+    public void definirVerificacionEdad(boolean requiere) {
+        boolean editable = (estado == EstadoPedido.SOLICITADO && fechaValidacion == null)
+                || estado == EstadoPedido.CORRECCION_SOLICITADA;
+        if (!editable) {
+            throw new IllegalStateException("La verificación de edad ya no se puede modificar en este estado del envío");
+        }
+        this.requiereVerificacionEdad = requiere;
+    }
     
     public void setIndicacionesAcceso(String indicacionesAcceso) {
         this.indicacionesAcceso = indicacionesAcceso;

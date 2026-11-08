@@ -1,7 +1,11 @@
 package com.udea.demo.usuarios.domain.model;
 
+import com.udea.demo.usuarios.domain.exception.DatosIdentidadInmutablesException;
 import jakarta.persistence.*;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Objects;
 
 @Entity
 @Table(name = "usuarios")
@@ -46,6 +50,24 @@ public class Usuario {
 
     private LocalDateTime fechaCreacion;
 
+    // HU-13 (V24). Solo se guardan cifrados (AES-256-GCM) y con un índice ciego. No tienen setters: la única
+    // forma de asignarlos es registrarDatosIdentidad, que los deja bloqueados (CA-3).
+    @Column(name = "numero_cedula_cifrado", length = 255)
+    private String numeroCedulaCifrado;
+
+    @Column(name = "numero_cedula_hash", length = 64, unique = true)
+    private String numeroCedulaHash;
+
+    @Column(name = "fecha_nacimiento_cifrada", length = 255)
+    private String fechaNacimientoCifrada;
+
+    @Column(name = "datos_identidad_bloqueados", nullable = false)
+    private Boolean datosIdentidadBloqueados = false;
+
+    /** Momento del bloqueo, en UTC. */
+    @Column(name = "fecha_bloqueo_identidad")
+    private LocalDateTime fechaBloqueoIdentidad;
+
     @PrePersist
     public void prePersist() {
         this.fechaCreacion = LocalDateTime.now();
@@ -77,6 +99,36 @@ public class Usuario {
                     || estado == EstadoUsuario.PENDIENTE_ACTIVACION
                     || (rol == Rol.CLIENTE && estado == EstadoUsuario.PENDIENTE_VERIFICACION));
     }
+
+    /**
+     * Registra la cédula y la fecha de nacimiento, ya protegidas, y las bloquea (CA-3). Solo se puede hacer
+     * una vez. Si dos peticiones concurrentes compiten por el mismo usuario, el trigger
+     * trg_usuarios_identidad_inmutable de V24 rechaza la segunda.
+     *
+     * @throws DatosIdentidadInmutablesException si el usuario ya tiene datos de identidad registrados
+     */
+    public void registrarDatosIdentidad(DatosIdentidadProtegidos datos, Instant ahora) {
+        Objects.requireNonNull(datos, "datos");
+        Objects.requireNonNull(ahora, "ahora");
+        if (tieneDatosIdentidad()) {
+            throw new DatosIdentidadInmutablesException();
+        }
+        this.numeroCedulaCifrado = datos.numeroCedulaCifrado();
+        this.numeroCedulaHash = datos.numeroCedulaHash();
+        this.fechaNacimientoCifrada = datos.fechaNacimientoCifrada();
+        this.datosIdentidadBloqueados = true;
+        this.fechaBloqueoIdentidad = LocalDateTime.ofInstant(ahora, ZoneOffset.UTC);
+    }
+
+    public boolean tieneDatosIdentidad() {
+        return Boolean.TRUE.equals(datosIdentidadBloqueados) || numeroCedulaHash != null;
+    }
+
+    public String getNumeroCedulaCifrado() { return numeroCedulaCifrado; }
+    public String getNumeroCedulaHash() { return numeroCedulaHash; }
+    public String getFechaNacimientoCifrada() { return fechaNacimientoCifrada; }
+    public boolean isDatosIdentidadBloqueados() { return Boolean.TRUE.equals(datosIdentidadBloqueados); }
+    public LocalDateTime getFechaBloqueoIdentidad() { return fechaBloqueoIdentidad; }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

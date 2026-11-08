@@ -52,6 +52,8 @@ public class Pedido {
     @Column(name = "fecha_limite_verificacion_direccion") private LocalDateTime fechaLimiteVerificacionDireccion;
     @Column(name = "fecha_ultima_incidencia") private LocalDateTime fechaUltimaIncidencia;
     @Column(name = "indicaciones_acceso", length = 500) private String indicacionesAcceso;
+    /** HU-13 (V25): verificación de edad 18+ definida por el remitente. Sin setter: usar definirVerificacionEdad. */
+    @Column(name = "requiere_verificacion_edad", nullable = false) private Boolean requiereVerificacionEdad = false;
     @Enumerated(EnumType.STRING) @Column(name = "estado_antes_pausa", length = 40) private EstadoPedido estadoAntesPausa;
     @Column(name = "id_pedido_origen_devolucion", unique = true) private Long pedidoOrigenDevolucionId;
     @Column(name = "numero_tracking_origen_devolucion", length = 50) private String numeroTrackingOrigenDevolucion;
@@ -416,6 +418,22 @@ public class Pedido {
     public LocalDateTime getFechaLimiteVerificacionDireccion() { return fechaLimiteVerificacionDireccion; }
     public LocalDateTime getFechaUltimaIncidencia() { return fechaUltimaIncidencia; }
     public String getIndicacionesAcceso() { return indicacionesAcceso; }
+    public boolean isRequiereVerificacionEdad() { return Boolean.TRUE.equals(requiereVerificacionEdad); }
+
+    /**
+     * HU-13 CA-4: activa o desactiva la verificación de edad 18+. Solo se puede antes de la validación del
+     * operador: en SOLICITADO sin fecha de validación (al aprobar, validar() deja SOLICITADO con fecha) o en
+     * CORRECCION_SOLICITADA. Que quien lo cambia sea el remitente lo verifica el servicio. El trigger
+     * trg_pedidos_verificacion_edad_editable (V25) impone la misma regla en la BD.
+     */
+    public void definirVerificacionEdad(boolean requiere) {
+        boolean editable = (estado == EstadoPedido.SOLICITADO && fechaValidacion == null)
+                || estado == EstadoPedido.CORRECCION_SOLICITADA;
+        if (!editable) {
+            throw new IllegalStateException("La verificación de edad ya no se puede modificar en este estado del envío");
+        }
+        this.requiereVerificacionEdad = requiere;
+    }
     public EstadoPedido getEstadoAntesPausa() { return estadoAntesPausa; }
     public Long getPedidoOrigenDevolucionId() { return pedidoOrigenDevolucionId; }
     public String getNumeroTrackingOrigenDevolucion() { return numeroTrackingOrigenDevolucion; }
