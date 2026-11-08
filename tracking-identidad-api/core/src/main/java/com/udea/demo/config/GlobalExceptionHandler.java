@@ -4,6 +4,7 @@ import com.udea.demo.usuarios.domain.exception.CifradoIdentidadException;
 import com.udea.demo.usuarios.domain.exception.DatoIdentidadInvalidoException;
 import com.udea.demo.usuarios.domain.exception.DatosIdentidadInmutablesException;
 import com.udea.demo.usuarios.domain.exception.EntregaCorreoException;
+import com.udea.demo.usuarios.domain.exception.IdentidadNoRegistrableException;
 import com.udea.demo.usuarios.domain.exception.PerfilRolIncompletoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +58,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
                 "code", "IDENTIDAD_INMUTABLE",
                 "error", ex.getMessage()));
+    }
+
+    /** HU-13 13-BE-01: la cédula no se puede asociar. El mensaje no revela si ya existe en otra cuenta. */
+    @ExceptionHandler(IdentidadNoRegistrableException.class)
+    public ResponseEntity<Map<String, String>> identidadNoRegistrable(IdentidadNoRegistrableException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", IdentidadNoRegistrableException.MENSAJE));
     }
 
     /** HU-13 CA-8: un fallo de cifrado no expone detalles. Se registra sin traza para no arrastrar datos de la causa. */

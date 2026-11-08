@@ -3,6 +3,17 @@ package com.udea.demo.usuarios.application.service;
 import com.udea.demo.usuarios.application.dto.ActualizarPerfilRequestDTO;
 import com.udea.demo.usuarios.application.dto.ClienteResponseDTO;
 import com.udea.demo.usuarios.application.dto.RegistroClienteRequestDTO;
+import com.udea.demo.usuarios.application.dto.RegistroClienteResponseDTO;
+import com.udea.demo.usuarios.domain.exception.DatoIdentidadInvalidoException;
+import com.udea.demo.usuarios.infrastructure.cifrado.CifradorAesGcmDatosIdentidad;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Spy;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.PlatformTransactionManager;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import com.udea.demo.usuarios.application.dto.UsuarioResponseDTO;
 import com.udea.demo.usuarios.domain.model.Cliente;
 import com.udea.demo.usuarios.domain.model.EstadoUsuario;
@@ -45,6 +56,12 @@ class ClienteServiceTest {
     @Mock private EmailServiceI emailService;
     @Mock private ActorAuthorizationService actorAuthorizationService;
     @Mock private PasswordPolicyService passwordPolicyService;
+    @Mock private AvisoIntentoRegistroService avisoIntentoRegistro;
+    @Mock private PlatformTransactionManager transactionManager;
+    /** Servicio real con una clave aleatoria por ejecución: cifra e indexa de verdad, sin secretos en el código. */
+    @Spy private ProteccionDatosIdentidadService proteccion = new ProteccionDatosIdentidadService(
+            new CifradorAesGcmDatosIdentidad(java.util.Base64.getEncoder().encodeToString(
+                    new java.security.SecureRandom().generateSeed(32)), true));
 
     @InjectMocks
     private ClienteService service;
@@ -81,38 +98,125 @@ class ClienteServiceTest {
                     .hasMessageContaining("El correo ya se encuentra registrado");
         }
 
+        private RegistroClienteRequestDTO registro(String email, String cedula, String fecha) {
+            return new RegistroClienteRequestDTO("Carlos Gomez", email, "ClaveSegura1!", "ClaveSegura1!",
+                    "3001234567", "Carrera 7 # 45-10", "Medellin", true, "1.0", true, "1.0", cedula, fecha);
+        }
+
+        private Usuario guardadoCon(Long id, String email) {
+            return Usuario.builder().id(id).nombre("Carlos Gomez").email(email)
+                    .rol(Rol.CLIENTE).estado(EstadoUsuario.PENDIENTE_VERIFICACION).build();
+        }
+
         @Test
-        @DisplayName("Registra exitosamente cliente y despacha correo de verificación")
-        void registrar_exitoso_creaClienteYToken() {
-            RegistroClienteRequestDTO dto = new RegistroClienteRequestDTO(
-                    "Carlos Gomez", "carlos@test.com", "ClaveSegura1!", "ClaveSegura1!",
-                    "3001234567", "Carrera 7 # 45-10", "Medellin", true, "1.0", true, "1.0");
-
-            when(usuarioRepository.existsByEmail("carlos@test.com")).thenReturn(false);
+        @DisplayName("Registra al cliente con su identidad cifrada y bloqueada, y despacha el correo de verificación")
+        void registrar_exitoso_creaClienteConIdentidad() {
+            RegistroClienteRequestDTO dto = registro("carlos@test.com", "1.000.000.001", "1990-05-17");
             when(passwordEncoder.encode("ClaveSegura1!")).thenReturn("hashedPass");
+            when(usuarioRepository.saveAndFlush(any(Usuario.class))).thenReturn(guardadoCon(101L, "carlos@test.com"));
 
-            Usuario usuarioGuardado = Usuario.builder()
-                    .id(101L)
-                    .nombre(dto.nombre())
-                    .email(dto.email())
-                    .rol(Rol.CLIENTE)
-                    .estado(EstadoUsuario.PENDIENTE_VERIFICACION)
-                    .build();
-            when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuarioGuardado);
+            RegistroClienteResponseDTO res = service.registrarCliente(dto);
 
-            when(clienteRepository.save(any(Cliente.class))).thenAnswer(invocation -> {
-                Cliente c = invocation.getArgument(0);
-                c.setId(201L);
-                return c;
-            });
-
-            ClienteResponseDTO res = service.registrarCliente(dto);
-
-            assertThat(res.idCliente()).isEqualTo(201L);
-            assertThat(res.email()).isEqualTo("carlos@test.com");
-            assertThat(res.ciudad()).isEqualTo("Medellin");
+            assertThat(res).isEqualTo(RegistroClienteResponseDTO.NEUTRA);
+            ArgumentCaptor<Usuario> creado = ArgumentCaptor.forClass(Usuario.class);
+            verify(usuarioRepository).saveAndFlush(creado.capture());
+            assertThat(creado.getValue().isDatosIdentidadBloqueados()).isTrue();
+            assertThat(creado.getValue().getNumeroCedulaHash()).isEqualTo(proteccion.indiceCiego("1000000001"));
+            assertThat(creado.getValue().getNumeroCedulaCifrado()).doesNotContain("1000000001");
+            assertThat(creado.getValue().getFechaNacimientoCifrada()).doesNotContain("1990");
             verify(tokenRepository).save(any(TokenVerificacion.class));
             verify(emailService).enviarVerificacion(eq("carlos@test.com"), eq("Carlos Gomez"), anyString());
+            verifyNoInteractions(avisoIntentoRegistro);
+        }
+
+        @Test
+        @DisplayName("Anti-enumeración: con la cédula de otra cuenta, la respuesta es idéntica, no se crea nada y se avisa al titular")
+        void registrar_cedulaDeOtraCuenta_respuestaNeutraSinCrear() {
+            Usuario titular = guardadoCon(7L, "titular@test.com");
+            when(usuarioRepository.findByNumeroCedulaHash(proteccion.indiceCiego("1000000001")))
+                    .thenReturn(Optional.of(titular));
+
+            RegistroClienteResponseDTO res = service.registrarCliente(registro("otro@test.com", "1000000001", "1990-05-17"));
+
+            assertThat(res).isEqualTo(RegistroClienteResponseDTO.NEUTRA);
+            assertThat(res.toString()).doesNotContain("1000000001").doesNotContain("titular");
+            verify(avisoIntentoRegistro).avisarTitular(titular);
+            verify(usuarioRepository, never()).saveAndFlush(any());
+            verifyNoInteractions(clienteRepository, tokenRepository);
+            verify(emailService, never()).enviarVerificacion(anyString(), anyString(), anyString());
+            // Mismo trabajo costoso (BCrypt) que un registro nuevo, para no delatar la existencia por el tiempo.
+            verify(passwordEncoder).encode("ClaveSegura1!");
+        }
+
+        @Test
+        @DisplayName("Anti-enumeración en carrera: si otro registro gana la constraint única, la respuesta sigue siendo neutra")
+        void registrar_carreraPorCedula_respuestaNeutra() {
+            Usuario ganador = guardadoCon(8L, "ganador@test.com");
+            when(usuarioRepository.findByNumeroCedulaHash(anyString()))
+                    .thenReturn(Optional.empty(), Optional.of(ganador));
+            when(usuarioRepository.saveAndFlush(any(Usuario.class)))
+                    .thenThrow(new DataIntegrityViolationException("uk_usuarios_numero_cedula_hash"));
+
+            RegistroClienteResponseDTO res = service.registrarCliente(registro("carrera@test.com", "1000000001", "1990-05-17"));
+
+            assertThat(res).isEqualTo(RegistroClienteResponseDTO.NEUTRA);
+            verify(avisoIntentoRegistro).avisarTitular(ganador);
+            verify(emailService, never()).enviarVerificacion(anyString(), anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("Una violación de integridad ajena a la cédula (correo en carrera) no se oculta")
+        void registrar_carreraPorCorreo_propagaError() {
+            when(usuarioRepository.saveAndFlush(any(Usuario.class)))
+                    .thenThrow(new DataIntegrityViolationException("usuarios_email_key"));
+
+            assertThatThrownBy(() -> service.registrarCliente(registro("carrera@test.com", "1000000001", "1990-05-17")))
+                    .isInstanceOf(DataIntegrityViolationException.class);
+            verifyNoInteractions(avisoIntentoRegistro);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"12345", "0123456789", "12345678901", "1234567' OR '1'='1", "<script>alert(1)</script>",
+                "\u0661\u0662\u0663\u0664\u0665\u0666\u0667", "123-456-789"})
+        @DisplayName("Negativo CA-1: rechaza cédulas inválidas o maliciosas por campo, sin repetirlas y sin escribir nada")
+        void registrar_cedulaInvalida_rechazaPorCampo(String cedula) {
+            assertThatThrownBy(() -> service.registrarCliente(registro("c@test.com", cedula, "1990-05-17")))
+                    .isInstanceOf(DatoIdentidadInvalidoException.class)
+                    .satisfies(ex -> assertThat(ex.getMessage()).doesNotContain(cedula))
+                    .extracting("campo").isEqualTo("numeroCedula");
+            verify(usuarioRepository, never()).saveAndFlush(any());
+            verify(passwordEncoder, never()).encode(anyString());
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"2023-02-30", "2023-02-29", "2024-13-01", "2024-00-10", "1899-12-31", "0000-01-01",
+                "17-05-1990", "1990/05/17", "+1990-05-1", "1990-05-17T00:00", "hoy"})
+        @DisplayName("Negativo CA-1: rechaza fechas irreales, mal formadas o fuera de rango con un mensaje del campo")
+        void registrar_fechaInvalida_rechazaPorCampo(String fecha) {
+            assertThatThrownBy(() -> service.registrarCliente(registro("c@test.com", "1000000001", fecha)))
+                    .isInstanceOf(DatoIdentidadInvalidoException.class)
+                    .extracting("campo").isEqualTo("fechaNacimiento");
+            verify(usuarioRepository, never()).saveAndFlush(any());
+        }
+
+        @Test
+        @DisplayName("Negativo CA-1: rechaza una fecha de nacimiento futura (en la zona operativa)")
+        void registrar_fechaFutura_rechaza() {
+            String manana = LocalDate.now(ZoneId.of("America/Bogota")).plusDays(1).toString();
+            assertThatThrownBy(() -> service.registrarCliente(registro("c@test.com", "1000000001", manana)))
+                    .isInstanceOf(DatoIdentidadInvalidoException.class)
+                    .hasMessage("La fecha de nacimiento no puede ser futura");
+        }
+
+        @Test
+        @DisplayName("Negativo CA-1: la cédula y la fecha son obligatorias aunque se use la firma anterior a HU-13")
+        void registrar_sinIdentidad_rechaza() {
+            RegistroClienteRequestDTO anterior = new RegistroClienteRequestDTO(
+                    "Carlos Gomez", "carlos@test.com", "ClaveSegura1!", "ClaveSegura1!",
+                    "3001234567", "Carrera 7 # 45-10", "Medellin", true, "1.0", true, "1.0");
+            assertThatThrownBy(() -> service.registrarCliente(anterior))
+                    .isInstanceOf(DatoIdentidadInvalidoException.class)
+                    .extracting("campo").isEqualTo("numeroCedula");
         }
     }
 

@@ -34,6 +34,19 @@ Las APIs siguen autorizando cada acción desde su `SecurityConfig`, mientras el 
 - Al revertir, el orden es primero V26 y después V24.
 - Prueba de punta a punta (login de un usuario incompleto sin bloqueo): `scripts/probar-login-perfil-incompleto.sh`.
 
+## HU-13: endpoints
+
+| Endpoint | Servicio | Rol |
+|---|---|---|
+| `GET /api/v1/clientes/me/identidad`: cédula enmascarada, fecha y edad calculada en el servidor | identidad | CLIENTE |
+| `PUT /api/v1/clientes/me/identidad`: completa un perfil incompleto, una sola vez; después responde 409 `IDENTIDAD_INMUTABLE` | identidad | CLIENTE |
+| `POST /api/v1/pedidos` y `PUT /api/v1/pedidos/{id}/corregir`: campo `requiereVerificacionEdad` | envíos | CLIENTE (remitente) |
+| `GET /api/v1/conductor/panel/entregas/{id}`: `requiereVerificacionEdad` y `resultadoVerificacionEdad` | rutas | CONDUCTOR |
+| `POST /api/v1/conductor/panel/entregas/{id}/verificacion-edad`: `{"resultado":"CUMPLE"\|"NO_CUMPLE"}` | rutas | CONDUCTOR asignado |
+
+- Con `NO_CUMPLE`, el envío pasa a `ENTREGA_FALLIDA_VERIFICACION_EDAD` (V27), se cancela la parada y se publica `DevolucionIniciadaEvent` para el retorno a bodega.
+- Un envío 18+ solo se cierra como `ENTREGADO` después de un `CUMPLE`. Lo controla la aplicación y también la BD.
+
 ## Probar migraciones sobre una copia
 
 `scripts/probar-migracion.sh <versión> [--dump respaldo.dump]`, por ejemplo `scripts/probar-migracion.sh 25`. Hace la subida, ejecuta `db/pruebas/VN__verificar.sql`, aplica el rollback dos veces, comprueba que esquema y filas vuelven al estado previo y repite la subida. Si existe `db/pruebas/VN__semilla.sql`, siembra con él los datos sintéticos previos.

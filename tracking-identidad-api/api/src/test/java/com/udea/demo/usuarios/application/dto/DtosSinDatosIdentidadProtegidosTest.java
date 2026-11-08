@@ -35,10 +35,14 @@ class DtosSinDatosIdentidadProtegidosTest {
             String nombre = candidato.getBeanClassName();
             if (nombre == null || !nombre.contains(".application.dto.")) continue;
             dtos.add(nombre);
+            // Los DTOs de ENTRADA (registro, creación interna) reciben la cédula que escribe el usuario. Ningún
+            // DTO, ni de entrada ni de salida, puede llevar el cifrado o el índice ciego.
+            String simple = nombre.substring(nombre.lastIndexOf('.') + 1);
+            boolean entrada = simple.endsWith("RequestDTO") || simple.endsWith("Command");
             for (Field campo : Class.forName(nombre).getDeclaredFields()) {
                 String n = campo.getName().toLowerCase(Locale.ROOT);
                 boolean expuesto = n.contains("cifrad") || n.contains("cedulahash") || n.contains("blindindex")
-                        || (n.contains("cedula") && !n.contains("enmascarad"));
+                        || (!entrada && n.contains("cedula") && !n.contains("enmascarad"));
                 if (expuesto) violaciones.add(nombre + "#" + campo.getName());
             }
         }

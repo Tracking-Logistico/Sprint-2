@@ -48,6 +48,7 @@ class RegistroResultadoEntregaServiceTest {
     @Mock private ValidadorUbicacion ubicaciones;
     @Mock private ActorAuthorizationService actores;
     @Mock private ApplicationEventPublisher publisher;
+    @Mock private com.udea.demo.rutas.interfaces.persistence.VerificacionEdadLogRepository verificacionesEdad;
 
     private RegistroResultadoEntregaService service;
 
@@ -58,7 +59,7 @@ class RegistroResultadoEntregaServiceTest {
     void setUp() {
         service = new RegistroResultadoEntregaService(
                 eventosRegistrados, paradas, rutas, pedidos, incidencias,
-                historial, ubicaciones, actores, publisher, 3);
+                historial, ubicaciones, actores, publisher, 3, verificacionesEdad);
         lenient().when(actores.conductorActualUsuarioId()).thenReturn(USUARIO_ID);
         lenient().when(actores.conductorActualId()).thenReturn(CONDUCTOR_ID);
     }

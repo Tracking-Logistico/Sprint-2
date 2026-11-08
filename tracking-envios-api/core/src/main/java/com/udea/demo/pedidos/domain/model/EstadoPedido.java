@@ -19,13 +19,15 @@ public enum EstadoPedido {
     ENTREGA_FALLIDA_CERRADA,
     PAUSADO,
     CANCELADO,
+    /** HU-13 CA-7: "Entrega fallida (Verificación de edad no aprobada)". Final: el paquete vuelve a bodega. */
+    ENTREGA_FALLIDA_VERIFICACION_EDAD,
 
     RECIBIDO,
     EN_VALIDACION,
     VALIDADO;
 
     private static final Set<EstadoPedido> FINALES =
-            EnumSet.of(ENTREGADO, RECHAZADO, DEVOLUCION_AL_REMITENTE, ENTREGA_FALLIDA_CERRADA, CANCELADO);
+            EnumSet.of(ENTREGADO, ENTREGA_FALLIDA_VERIFICACION_EDAD, RECHAZADO, DEVOLUCION_AL_REMITENTE, ENTREGA_FALLIDA_CERRADA, CANCELADO);
 
     private static final Set<EstadoPedido> ACTIVOS_LOGISTICOS = EnumSet.of(CREADO, RECIBIDO_EN_ORIGEN, EN_TRANSITO,
             EN_REPARTO, ENTREGA_FALLIDA, ENTREGA_REPROGRAMADA, DIRECCION_POR_VERIFICAR);

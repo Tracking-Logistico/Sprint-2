@@ -2,7 +2,6 @@ package com.udea.demo.pedidos.application.service;
 
 import com.udea.demo.pedidos.application.dto.PedidoResponseDTO;
 import com.udea.demo.pedidos.application.dto.RecibirPedidoRequestDTO;
-import com.udea.demo.pedidos.domain.exception.PedidoNoEncontradoException;
 import com.udea.demo.pedidos.domain.model.EstadoPedido;
 import com.udea.demo.pedidos.domain.model.Pedido;
 import com.udea.demo.pedidos.domain.model.Prioridad;
@@ -134,13 +133,14 @@ class RecepcionPedidoUseCaseTest {
     }
 
     @Test
-    @DisplayName("corregir() de pedido inexistente lanza PedidoNoEncontradoException")
+    @DisplayName("HU-13 anti-enumeración: corregir() de un pedido inexistente responde igual que uno ajeno (403)")
     void corregir_inexistente_lanzaExcepcion() {
         when(pedidos.findByIdForUpdate(999L)).thenReturn(Optional.empty());
 
         RecibirPedidoRequestDTO dto = crearRequest(2.0, TipoServicio.ESTANDAR);
 
         assertThatThrownBy(() -> useCase.corregir(999L, dto))
-                .isInstanceOf(PedidoNoEncontradoException.class);
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                .hasMessage("El pedido no pertenece al cliente autenticado");
     }
 }

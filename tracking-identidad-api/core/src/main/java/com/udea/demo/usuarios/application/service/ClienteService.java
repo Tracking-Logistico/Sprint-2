@@ -1,9 +1,16 @@
 package com.udea.demo.usuarios.application.service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import com.udea.demo.usuarios.application.dto.RegistroClienteResponseDTO;
+import com.udea.demo.usuarios.domain.model.DatosIdentidadProtegidos;
 import org.springframework.security.access.AccessDeniedException;
 import com.udea.demo.usuarios.interfaces.services.EmailServiceI;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,6 +41,9 @@ public class ClienteService implements ClienteServiceI {
     private final EmailServiceI emailService;
     private final ActorAuthorizationService actorAuthorizationService;
     private final PasswordPolicyService passwordPolicyService;
+    private final ProteccionDatosIdentidadService proteccionIdentidad;
+    private final AvisoIntentoRegistroService avisoIntentoRegistro;
+    private final TransactionTemplate transacciones;
 
     @Value("${app.verification-url}")
     private String verificationUrl;
@@ -44,7 +54,10 @@ public class ClienteService implements ClienteServiceI {
                           PasswordEncoder passwordEncoder,
                           EmailServiceI emailService,
                           ActorAuthorizationService actorAuthorizationService,
-                          PasswordPolicyService passwordPolicyService) {
+                          PasswordPolicyService passwordPolicyService,
+                          ProteccionDatosIdentidadService proteccionIdentidad,
+                          AvisoIntentoRegistroService avisoIntentoRegistro,
+                          PlatformTransactionManager transactionManager) {
         this.usuarioRepository = usuarioRepository;
         this.clienteRepository = clienteRepository;
         this.tokenRepository = tokenRepository;
@@ -52,11 +65,27 @@ public class ClienteService implements ClienteServiceI {
         this.emailService = emailService;
         this.actorAuthorizationService = actorAuthorizationService;
         this.passwordPolicyService = passwordPolicyService;
+        this.proteccionIdentidad = proteccionIdentidad;
+        this.avisoIntentoRegistro = avisoIntentoRegistro;
+        this.transacciones = new TransactionTemplate(transactionManager);
     }
 
+    /**
+     * Registro público de cliente (HU-01A con HU-13 CA-1).
+     *
+     * <p>Anti-enumeración de la cédula (13-BE-01). La respuesta es siempre {@link RegistroClienteResponseDTO#NEUTRA}:
+     * <ul>
+     *   <li>Cédula nueva: se crea la cuenta y se envía el correo de verificación.</li>
+     *   <li>Cédula de otra cuenta: no se crea nada y se avisa al titular en su propio correo.</li>
+     *   <li>Carrera (dos registros simultáneos con la misma cédula): la constraint única de V24 rechaza al
+     *       segundo, que recibe la misma respuesta neutra.</li>
+     * </ul>
+     * La contraseña se codifica con BCrypt en todos los caminos, para que el tiempo de respuesta no delate la
+     * existencia. Los errores de formato (cédula mal escrita, fecha irreal o futura) sí se informan por campo,
+     * porque se refieren a la entrada y no a otras cuentas.
+     */
     @Override
-    @Transactional
-    public ClienteResponseDTO registrarCliente(RegistroClienteRequestDTO dto) {
+    public RegistroClienteResponseDTO registrarCliente(RegistroClienteRequestDTO dto) {
         if (!dto.password().equals(dto.confirmarPassword())) {
             throw new IllegalArgumentException("Las contraseñas no coinciden");
         }
@@ -64,11 +93,30 @@ public class ClienteService implements ClienteServiceI {
         if (usuarioRepository.existsByEmail(dto.email())) {
             throw new IllegalArgumentException("El correo ya se encuentra registrado");
         }
+        DatosIdentidadProtegidos identidad = proteccionIdentidad.protegerHoy(dto.numeroCedula(), dto.fechaNacimiento());
+        String passwordCodificada = passwordEncoder.encode(dto.password());
 
+        Optional<Usuario> titular = usuarioRepository.findByNumeroCedulaHash(identidad.numeroCedulaHash());
+        if (titular.isPresent()) {
+            avisoIntentoRegistro.avisarTitular(titular.get());
+            return RegistroClienteResponseDTO.NEUTRA;
+        }
+        try {
+            transacciones.executeWithoutResult(estado -> crearCuenta(dto, passwordCodificada, identidad));
+        } catch (DataIntegrityViolationException ex) {
+            Optional<Usuario> ganador = usuarioRepository.findByNumeroCedulaHash(identidad.numeroCedulaHash());
+            if (ganador.isEmpty()) throw ex;
+            avisoIntentoRegistro.avisarTitular(ganador.get());
+        }
+        return RegistroClienteResponseDTO.NEUTRA;
+    }
+
+    private void crearCuenta(RegistroClienteRequestDTO dto, String passwordCodificada,
+                             DatosIdentidadProtegidos identidad) {
         Usuario usuario = Usuario.builder()
                 .nombre(dto.nombre())
                 .email(dto.email())
-                .password(passwordEncoder.encode(dto.password()))
+                .password(passwordCodificada)
                 .telefono(dto.telefono())
                 .direccion(dto.direccion())
                 .rol(Rol.CLIENTE)
@@ -82,8 +130,9 @@ public class ClienteService implements ClienteServiceI {
                 .fechaAceptacionPoliticaDatos(LocalDateTime.now())
                 .fechaCreacion(LocalDateTime.now())
                 .build();
+        usuario.registrarDatosIdentidad(identidad, Instant.now());
 
-        Usuario guardado = usuarioRepository.save(usuario);
+        Usuario guardado = usuarioRepository.saveAndFlush(usuario);
 
         Cliente cliente = Cliente.builder()
                 .usuario(guardado)
@@ -101,8 +150,6 @@ public class ClienteService implements ClienteServiceI {
         tokenRepository.save(tokenVerificacion);
         emailService.enviarVerificacion(guardado.getEmail(), guardado.getNombre(),
                 verificationUrl + (verificationUrl.contains("?") ? "&" : "?") + "token=" + tokenUUID);
-
-        return mapToClienteResponseDTO(cliente);
     }
 
     @Override

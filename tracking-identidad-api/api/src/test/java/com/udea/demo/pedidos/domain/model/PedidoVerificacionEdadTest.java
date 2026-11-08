@@ -75,6 +75,104 @@ class PedidoVerificacionEdadTest {
         assertThat(pedido.isRequiereVerificacionEdad()).isTrue();
     }
 
+    private static Pedido envio18EnEstado(EstadoPedido estado) {
+        Pedido pedido = enEstado(EstadoPedido.SOLICITADO);
+        pedido.definirVerificacionEdad(true);
+        org.springframework.test.util.ReflectionTestUtils.setField(pedido, "estado", estado);
+        return pedido;
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EstadoPedido.class, names = {"EN_REPARTO", "ENTREGA_REPROGRAMADA"})
+    @DisplayName("CA-7: durante la entrega, 'Verificación no aprobada' lleva al estado final de entrega fallida por edad")
+    void fallaPorVerificacionEdad(EstadoPedido estado) {
+        Pedido pedido = envio18EnEstado(estado);
+        java.time.LocalDateTime ahora = java.time.LocalDateTime.of(2026, 11, 7, 10, 0);
+
+        pedido.fallarPorVerificacionEdad(ahora);
+
+        assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.ENTREGA_FALLIDA_VERIFICACION_EDAD);
+        assertThat(pedido.getEstado().esFinal()).isTrue();
+        assertThat(pedido.getFechaEntregaFallida()).isEqualTo(ahora);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EstadoPedido.class, names = {"CREADO", "EN_TRANSITO", "ENTREGADO", "CANCELADO", "PAUSADO",
+            "ENTREGA_FALLIDA_VERIFICACION_EDAD"})
+    @DisplayName("Negativo CA-7: fuera de la entrega, o ya finalizado, no se puede fallar por edad")
+    void noFallaFueraDeEntrega(EstadoPedido estado) {
+        Pedido pedido = envio18EnEstado(estado);
+        assertThatThrownBy(() -> pedido.fallarPorVerificacionEdad(java.time.LocalDateTime.now()))
+                .isInstanceOf(RuntimeException.class);
+        assertThat(pedido.getEstado()).isEqualTo(estado);
+    }
+
+    @Test
+    @DisplayName("Negativo CA-7: un envío sin la marca 18+ no puede fallar por verificación de edad")
+    void sinMarcaNoFalla() {
+        Pedido pedido = enEstado(EstadoPedido.EN_REPARTO);
+        assertThatThrownBy(() -> pedido.fallarPorVerificacionEdad(java.time.LocalDateTime.now()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("Negativo CA-5 (13-BE-04): ningún cambio de estado genérico cierra como ENTREGADO un envío 18+")
+    void entregadoGenericoBloqueado() {
+        Pedido pedido = envio18EnEstado(EstadoPedido.EN_REPARTO);
+        assertThat(pedido.puedeCambiarEstadoLogisticoA(EstadoPedido.ENTREGADO)).isFalse();
+        assertThatThrownBy(() -> pedido.cambiarEstadoLogistico(EstadoPedido.ENTREGADO))
+                .isInstanceOf(com.udea.demo.pedidos.domain.exception.VerificacionEdadRequeridaException.class)
+                .hasMessage("El envío requiere verificación de edad aprobada antes de marcarse como entregado");
+        assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.EN_REPARTO);
+    }
+
+    @Test
+    @DisplayName("Negativo CA-5: sin 'Mayor de edad verificado' el cierre explícito también se rechaza")
+    void entregaSinVerificacion() {
+        Pedido pedido = envio18EnEstado(EstadoPedido.EN_REPARTO);
+        assertThatThrownBy(() -> pedido.entregarConVerificacionEdad(false))
+                .isInstanceOf(com.udea.demo.pedidos.domain.exception.VerificacionEdadRequeridaException.class);
+        assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.EN_REPARTO);
+    }
+
+    @Test
+    @DisplayName("CA-6: con 'Mayor de edad verificado' el envío 18+ se cierra como ENTREGADO")
+    void entregaConVerificacion() {
+        Pedido pedido = envio18EnEstado(EstadoPedido.EN_REPARTO);
+        pedido.entregarConVerificacionEdad(true);
+        assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.ENTREGADO);
+    }
+
+    @Test
+    @DisplayName("Sin regresión: un envío sin marca 18+ se entrega por cualquiera de los dos caminos")
+    void envioNormalSinCambios() {
+        Pedido a = enEstado(EstadoPedido.EN_REPARTO);
+        a.cambiarEstadoLogistico(EstadoPedido.ENTREGADO);
+        assertThat(a.getEstado()).isEqualTo(EstadoPedido.ENTREGADO);
+        Pedido b = enEstado(EstadoPedido.EN_REPARTO);
+        b.entregarConVerificacionEdad(false);
+        assertThat(b.getEstado()).isEqualTo(EstadoPedido.ENTREGADO);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EstadoPedido.class, names = {"CREADO", "EN_TRANSITO", "ENTREGA_REPROGRAMADA"})
+    @DisplayName("Negativo: aun con la edad verificada, solo se entrega desde EN_REPARTO")
+    void entregaFueraDeReparto(EstadoPedido estado) {
+        Pedido pedido = envio18EnEstado(estado);
+        assertThatThrownBy(() -> pedido.entregarConVerificacionEdad(true))
+                .isInstanceOf(com.udea.demo.pedidos.domain.exception.TransicionEstadoInvalidaException.class);
+        assertThat(pedido.getEstado()).isEqualTo(estado);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EstadoPedido.class, names = {"ENTREGADO", "ENTREGA_FALLIDA_VERIFICACION_EDAD", "CANCELADO"})
+    @DisplayName("Negativo: un envío finalizado no se vuelve a entregar")
+    void finalizadoNoSeEntrega(EstadoPedido estado) {
+        Pedido pedido = envio18EnEstado(estado);
+        assertThatThrownBy(() -> pedido.entregarConVerificacionEdad(true)).isInstanceOf(RuntimeException.class);
+        assertThat(pedido.getEstado()).isEqualTo(estado);
+    }
+
     @Test
     @DisplayName("Negativo: no hay un setter público que permita saltarse la regla de estado")
     void sinSetter() {

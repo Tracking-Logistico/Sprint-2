@@ -1,5 +1,7 @@
 package com.udea.demo.rutas.application.service;
 
+import com.udea.demo.rutas.interfaces.persistence.VerificacionEdadLogRepository;
+
 import com.udea.demo.pedidos.application.dto.HistorialPedidoResponseDTO;
 import com.udea.demo.pedidos.application.dto.PedidoResponseDTO;
 import com.udea.demo.pedidos.domain.model.EstadoPedido;
@@ -27,19 +29,23 @@ import java.util.stream.Collectors;
 public class PanelConductorService implements PanelConductorServiceI {
 
     private static final Set<EstadoPedido> ESTADOS_FALLIDOS = EnumSet.of(
-            EstadoPedido.ENTREGA_FALLIDA, EstadoPedido.DEVOLUCION_AL_REMITENTE, EstadoPedido.ENTREGA_FALLIDA_CERRADA);
+            EstadoPedido.ENTREGA_FALLIDA, EstadoPedido.DEVOLUCION_AL_REMITENTE, EstadoPedido.ENTREGA_FALLIDA_CERRADA,
+            EstadoPedido.ENTREGA_FALLIDA_VERIFICACION_EDAD);
 
 
     private final RutaRepository rutas;
     private final ConductorRepository conductores;
     private final PedidoServiceI pedidos;
     private final ActorAuthorizationService actores;
+    private final VerificacionEdadLogRepository verificacionesEdad;
 
     @Value("${app.operations.time-zone:America/Bogota}")
     private String zonaHoraria = "UTC";
 
     public PanelConductorService(RutaRepository rutas, ConductorRepository conductores,
-                                 PedidoServiceI pedidos, ActorAuthorizationService actores) {
+                                 PedidoServiceI pedidos, ActorAuthorizationService actores,
+                                 VerificacionEdadLogRepository verificacionesEdad) {
+        this.verificacionesEdad = verificacionesEdad;
         this.rutas = rutas;
         this.conductores = conductores;
         this.pedidos = pedidos;
@@ -146,7 +152,9 @@ public class PanelConductorService implements PanelConductorServiceI {
                 pedido.estado().name(),
                 pedido.observacionesValidacion(),
                 pedido.fechaEntregaReprogramada(),
-                ultimos);
+                ultimos,
+                Boolean.TRUE.equals(pedido.requiereVerificacionEdad()),
+                verificacionesEdad.findById(pedidoId).map(v -> v.getResultado().name()).orElse(null));
     }
 
     @Override @Transactional(readOnly = true)
