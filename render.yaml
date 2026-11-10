@@ -23,6 +23,10 @@ services:
         value: "-XX:MaxRAMPercentage=55.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2"
       - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
         value: "3"
+      # HU-13: clave de cifrado de la cédula y la fecha de nacimiento. Solo para identidad, no va en el
+      # grupo compartido. Render la genera una única vez; no se debe regenerar, o los datos cifrados quedan ilegibles.
+      - key: IDENTIDAD_CLAVE_MAESTRA
+        generateValue: true
       - fromGroup: logistrack-demo-shared
       - key: DB_HOST
         fromDatabase: { name: logistrack-demo-pg, property: host }

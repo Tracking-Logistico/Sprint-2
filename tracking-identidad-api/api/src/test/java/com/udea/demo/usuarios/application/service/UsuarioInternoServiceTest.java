@@ -13,6 +13,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
+import org.mockito.ArgumentCaptor;
+import com.udea.demo.usuarios.infrastructure.cifrado.CifradorAesGcmDatosIdentidad;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,6 +42,10 @@ class UsuarioInternoServiceTest {
     @Mock private ActorAuthorizationService actorAuthorizationService;
     @Mock private SesionUsuarioRepository sesionRepository;
     @Mock private PasswordPolicyService passwordPolicyService;
+    /** Servicio real con una clave aleatoria por ejecución (sin secretos en el código). */
+    @Spy private ProteccionDatosIdentidadService proteccion = new ProteccionDatosIdentidadService(
+            new CifradorAesGcmDatosIdentidad(java.util.Base64.getEncoder().encodeToString(
+                    new java.security.SecureRandom().generateSeed(32)), true));
 
     @InjectMocks
     private UsuarioInternoService service;
@@ -102,7 +111,7 @@ class UsuarioInternoServiceTest {
         @DisplayName("Crea exitosamente un operador con contraseña temporal")
         void crear_operadorExitoso_retornaResultado() {
             CrearUsuarioInternoCommand cmd = new CrearUsuarioInternoCommand(
-                    "Operador Uno", "op1@test.com", "3001112233", Rol.OPERADOR, "Calle 1", null, "OP-001");
+                    "Operador Uno", "op1@test.com", "3001112233", Rol.OPERADOR, "Calle 1", null, "OP-001", "1000000001", "1990-05-17");
             when(usuarioRepository.existsByEmail("op1@test.com")).thenReturn(false);
             when(operadorRepository.existsByCodigoEmpleado("OP-001")).thenReturn(false);
             when(passwordTemporalService.generar()).thenReturn("TempPass123!");
@@ -130,7 +139,7 @@ class UsuarioInternoServiceTest {
         @DisplayName("Crea exitosamente un conductor con contraseña temporal")
         void crear_conductorExitoso_retornaResultado() {
             CrearUsuarioInternoCommand cmd = new CrearUsuarioInternoCommand(
-                    "Conductor Uno", "cond1@test.com", "3004445566", Rol.CONDUCTOR, "Calle 2", "LIC-999", null);
+                    "Conductor Uno", "cond1@test.com", "3004445566", Rol.CONDUCTOR, "Calle 2", "LIC-999", null, "1000000002", "1985-11-30");
             when(usuarioRepository.existsByEmail("cond1@test.com")).thenReturn(false);
             when(passwordTemporalService.generar()).thenReturn("TempPass456!");
             when(passwordEncoder.encode("TempPass456!")).thenReturn("encodedHash2");
@@ -150,6 +159,62 @@ class UsuarioInternoServiceTest {
             assertThat(res.email()).isEqualTo("cond1@test.com");
             assertThat(res.rol()).isEqualTo(Rol.CONDUCTOR);
             verify(conductorRepository).save(any(Conductor.class));
+        }
+
+        @Test
+        @DisplayName("HU-13: el usuario interno se crea con su identidad cifrada y bloqueada")
+        void crear_conIdentidad_quedaBloqueada() {
+            CrearUsuarioInternoCommand cmd = new CrearUsuarioInternoCommand("Conductor Dos", "cond2@test.com",
+                    "3004445566", Rol.CONDUCTOR, "Calle 3", "LIC-1000", null, "1.000.000.003", "1980-01-15");
+            when(passwordTemporalService.generar()).thenReturn("TempPass789!");
+            when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            service.crear(cmd);
+
+            ArgumentCaptor<Usuario> creado = ArgumentCaptor.forClass(Usuario.class);
+            verify(usuarioRepository).save(creado.capture());
+            assertThat(creado.getValue().isDatosIdentidadBloqueados()).isTrue();
+            assertThat(creado.getValue().getNumeroCedulaHash()).isEqualTo(proteccion.indiceCiego("1000000003"));
+            assertThat(creado.getValue().getNumeroCedulaCifrado()).doesNotContain("1000000003");
+        }
+
+        @Test
+        @DisplayName("Negativo anti-enumeración: con la cédula de otra cuenta, el mensaje es genérico y no se crea nada")
+        void crear_cedulaDeOtraCuenta_mensajeGenerico() {
+            CrearUsuarioInternoCommand cmd = new CrearUsuarioInternoCommand("Operador Dos", "op2@test.com",
+                    "3001112233", Rol.OPERADOR, "Calle 1", null, "OP-002", "1000000004", "1990-05-17");
+            when(usuarioRepository.existsByNumeroCedulaHash(proteccion.indiceCiego("1000000004"))).thenReturn(true);
+
+            assertThatThrownBy(() -> service.crear(cmd))
+                    .isInstanceOf(IdentidadNoRegistrableException.class)
+                    .hasMessage(IdentidadNoRegistrableException.MENSAJE)
+                    .satisfies(ex -> assertThat(ex.getMessage()).doesNotContain("1000000004")
+                            .doesNotContainIgnoringCase("registrad").doesNotContainIgnoringCase("existe"));
+            verify(usuarioRepository, never()).save(any());
+            verifyNoInteractions(passwordTemporalService);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"2023-02-30", "2999-01-01", "1899-12-31", "1990/05/17"})
+        @DisplayName("Negativo CA-1: rechaza fechas irreales, futuras o mal formadas con un mensaje del campo")
+        void crear_fechaInvalida_rechaza(String fecha) {
+            CrearUsuarioInternoCommand cmd = new CrearUsuarioInternoCommand("Operador Tres", "op3@test.com",
+                    "3001112233", Rol.OPERADOR, "Calle 1", null, "OP-003", "1000000005", fecha);
+            assertThatThrownBy(() -> service.crear(cmd))
+                    .isInstanceOf(DatoIdentidadInvalidoException.class)
+                    .extracting("campo").isEqualTo("fechaNacimiento");
+            verify(usuarioRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Negativo CA-1: sin cédula (firma anterior a HU-13) no se crea el usuario")
+        void crear_sinCedula_rechaza() {
+            CrearUsuarioInternoCommand cmd = new CrearUsuarioInternoCommand(
+                    "Operador Cuatro", "op4@test.com", "3001112233", Rol.OPERADOR, "Calle 1", null, "OP-004");
+            assertThatThrownBy(() -> service.crear(cmd))
+                    .isInstanceOf(DatoIdentidadInvalidoException.class)
+                    .extracting("campo").isEqualTo("numeroCedula");
+            verify(usuarioRepository, never()).save(any());
         }
     }
 

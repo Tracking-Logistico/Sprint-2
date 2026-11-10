@@ -31,13 +31,16 @@ public class RegistroResultadoEntregaService {
     private final ActorAuthorizationService actores;
     private final ApplicationEventPublisher publisher;
     private final int maxIntentos;
+    private final VerificacionEdadLogRepository verificacionesEdad;
 
     public RegistroResultadoEntregaService(EventoResultadoEntregaRepository eventosRegistrados,
             ParadaRutaRepository paradas, RutaRepository rutas, PedidoRepository pedidos,
             IncidenciaPedidoRepository incidencias, RegistroHistorialPedido historial,
             ValidadorUbicacion ubicaciones, ActorAuthorizationService actores,
             ApplicationEventPublisher publisher,
-            @Value("${app.incidencias.max-intentos-entrega:3}") int maxIntentos) {
+            @Value("${app.incidencias.max-intentos-entrega:3}") int maxIntentos,
+            VerificacionEdadLogRepository verificacionesEdad) {
+        this.verificacionesEdad = verificacionesEdad;
         this.eventosRegistrados = eventosRegistrados;
         this.paradas = paradas;
         this.rutas = rutas;
@@ -79,7 +82,11 @@ public class RegistroResultadoEntregaService {
         LocalDateTime ahora = LocalDateTime.now();
         EstadoPedido anteriorEstado = pedido.getEstado();
         if (evento.resultado() == ResultadoEntregaRequestDTO.Resultado.ENTREGADO) {
-            pedido.cambiarEstadoLogistico(EstadoPedido.ENTREGADO);
+            // HU-13 CA-5: un envío 18+ no pasa a ENTREGADO sin "Mayor de edad verificado" (V25 lo repite en la BD).
+            // Consultado bajo el bloqueo del envío (findByIdForUpdate): no hay carrera con la verificación.
+            boolean edadVerificada = verificacionesEdad.findById(pedidoId)
+                    .map(v -> v.getResultado().permiteEntrega()).orElse(false);
+            pedido.entregarConVerificacionEdad(edadVerificada);
             parada.getRuta().marcarParadaEntregada(pedidoId);
             rutas.save(parada.getRuta());
             historial.registrar(pedidoId, usuarioId, RegistroHistorialPedido.ESTADO_LOGISTICO,

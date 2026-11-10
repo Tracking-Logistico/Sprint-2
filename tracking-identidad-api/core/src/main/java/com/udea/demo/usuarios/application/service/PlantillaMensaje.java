@@ -29,7 +29,10 @@ public class PlantillaMensaje {
             case ENTREGADO   -> "Tu paquete fue entregado. ¡Gracias por confiar en nosotros!";
             case ENTREGA_FALLIDA -> "No pudimos entregar tu paquete. Puedes elegir una nueva fecha de entrega.";
             case ENTREGA_REPROGRAMADA -> "Tu entrega fue reprogramada.";
-            default -> "Tu envío cambió de estado: " + estado.name().replace('_', ' ').toLowerCase() + ".";
+            case ENTREGA_FALLIDA_VERIFICACION_EDAD -> "No pudimos entregar tu paquete porque no fue posible verificar "
+                    + "la mayoría de edad de quien lo recibe. El paquete regresará a nuestra bodega.";
+            // Nunca se expone el código interno del estado al cliente (HU-13 13-FE-04, regla 5).
+            default -> "Tu envío tiene una nueva actualización.";
         };
         String asunto = "Actualización de tu envío " + numeroTracking;
         String cuerpo = "Hola,\n\n" + cuerpoBase

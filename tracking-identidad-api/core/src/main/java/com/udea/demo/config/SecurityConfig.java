@@ -132,6 +132,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/rutas/mi-ruta", "/api/v1/rutas/mis-notificaciones",
                                  "/api/v1/rutas/mis-notificaciones/*/leer").hasRole("CONDUCTOR")
                 .requestMatchers("/api/v1/rutas/conductores/**").hasRole("OPERADOR")
+                // HU-13: identidad del propio cliente (sin id en la ruta: anti-IDOR).
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/clientes/me/identidad").hasRole("CLIENTE")
+                .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/clientes/me/identidad").hasRole("CLIENTE")
                 .requestMatchers("/api/v1/clientes/me", "/api/v1/clientes/me/perfil",
                                  "/api/v1/clientes/*/perfil", "/api/v1/clientes/*")
                     .hasRole("CLIENTE")

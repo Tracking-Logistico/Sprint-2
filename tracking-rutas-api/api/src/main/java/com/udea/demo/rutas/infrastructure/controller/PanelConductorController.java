@@ -3,6 +3,7 @@ package com.udea.demo.rutas.infrastructure.controller;
 import com.udea.demo.rutas.application.dto.*;
 import com.udea.demo.rutas.application.service.RegistroResultadoEntregaService;
 import com.udea.demo.rutas.application.service.SincronizacionEntregasService;
+import com.udea.demo.rutas.application.service.VerificacionEdadService;
 import jakarta.validation.Valid;
 import com.udea.demo.rutas.application.dto.ParadaPanelDTO;
 import com.udea.demo.rutas.application.dto.ProgresoPanelDTO;
@@ -22,12 +23,25 @@ public class PanelConductorController {
     private final PanelConductorServiceI panel;
     private final RegistroResultadoEntregaService registro;
     private final SincronizacionEntregasService sincronizacion;
+    private final VerificacionEdadService verificacionEdad;
 
     public PanelConductorController(PanelConductorServiceI panel, RegistroResultadoEntregaService registro,
-            SincronizacionEntregasService sincronizacion) {
+            SincronizacionEntregasService sincronizacion, VerificacionEdadService verificacionEdad) {
         this.panel = panel;
         this.registro = registro;
         this.sincronizacion = sincronizacion;
+        this.verificacionEdad = verificacionEdad;
+    }
+
+    /**
+     * HU-13 CA-5/6/7: "Mayor de edad verificado" (CUMPLE) o "Verificación no aprobada" (NO_CUMPLE). Solo lo puede usar
+     * el conductor asignado a la parada pendiente (rol CONDUCTOR por SecurityConfig y propiedad del recurso en el
+     * servicio). Solo se registra el resultado, nunca datos ni imágenes del documento.
+     */
+    @PostMapping("/entregas/{pedidoId}/verificacion-edad")
+    public ResponseEntity<VerificacionEdadResponseDTO> registrarVerificacionEdad(@PathVariable Long pedidoId,
+            @Valid @RequestBody VerificacionEdadRequestDTO solicitud) {
+        return ResponseEntity.ok(verificacionEdad.registrar(pedidoId, solicitud));
     }
 
     @GetMapping("/ruta")

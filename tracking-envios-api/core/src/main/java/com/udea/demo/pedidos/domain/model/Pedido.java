@@ -52,6 +52,8 @@ public class Pedido {
     @Column(name = "fecha_limite_verificacion_direccion") private LocalDateTime fechaLimiteVerificacionDireccion;
     @Column(name = "fecha_ultima_incidencia") private LocalDateTime fechaUltimaIncidencia;
     @Column(name = "indicaciones_acceso", length = 500) private String indicacionesAcceso;
+    /** HU-13 (V25): verificación de edad 18+ definida por el remitente. Sin setter: usar definirVerificacionEdad. */
+    @Column(name = "requiere_verificacion_edad", nullable = false) private Boolean requiereVerificacionEdad = false;
     @Enumerated(EnumType.STRING) @Column(name = "estado_antes_pausa", length = 40) private EstadoPedido estadoAntesPausa;
     @Column(name = "id_pedido_origen_devolucion", unique = true) private Long pedidoOrigenDevolucionId;
     @Column(name = "numero_tracking_origen_devolucion", length = 50) private String numeroTrackingOrigenDevolucion;
@@ -168,13 +170,44 @@ public class Pedido {
     }
 
     public void cambiarEstadoLogistico(EstadoPedido nuevo) {
+        // HU-13 CA-5: ningún camino genérico (estado logístico del operador, checkpoints, trazabilidad por
+        // ubicación) puede cerrar como ENTREGADO un envío 18+. El único camino es entregarConVerificacionEdad.
+        if (nuevo == EstadoPedido.ENTREGADO && isRequiereVerificacionEdad()) {
+            exigirNoFinalizado();
+            throw new VerificacionEdadRequeridaException();
+        }
         if (!puedeCambiarEstadoLogisticoA(nuevo)) throw new TransicionEstadoInvalidaException(estado, nuevo);
         this.estado = nuevo;
     }
 
-    /** Valida la transición sin aplicarla; un envío finalizado nunca admite cambios de estado. */
+    /**
+     * HU-13 CA-5/CA-6: cierre de la entrega. Un envío 18+ solo se cierra si {@code edadVerificada} es true, es
+     * decir, si hay un "Mayor de edad verificado" (CUMPLE) registrado. El llamador lo consulta en
+     * verificacion_edad_log bajo el bloqueo del envío. El trigger V25 lo repite en la BD.
+     */
+    public void entregarConVerificacionEdad(boolean edadVerificada) {
+        exigirNoFinalizado();
+        if (isRequiereVerificacionEdad() && !edadVerificada) {
+            throw new VerificacionEdadRequeridaException();
+        }
+        if (!transicionLogisticaPermitida(EstadoPedido.ENTREGADO)) {
+            throw new TransicionEstadoInvalidaException(estado, EstadoPedido.ENTREGADO);
+        }
+        this.estado = EstadoPedido.ENTREGADO;
+    }
+
+    /**
+     * Valida la transición sin aplicarla; un envío finalizado nunca admite cambios de estado. Para un envío 18+,
+     * ENTREGADO nunca es una transición genérica válida: así los checkpoints offline lo mandan a revisión en vez
+     * de aplicarlo.
+     */
     public boolean puedeCambiarEstadoLogisticoA(EstadoPedido nuevo) {
         exigirNoFinalizado();
+        if (nuevo == EstadoPedido.ENTREGADO && isRequiereVerificacionEdad()) return false;
+        return transicionLogisticaPermitida(nuevo);
+    }
+
+    private boolean transicionLogisticaPermitida(EstadoPedido nuevo) {
         return switch (estado) {
             case CREADO -> nuevo == EstadoPedido.RECIBIDO_EN_ORIGEN || nuevo == EstadoPedido.EN_TRANSITO;
             case RECIBIDO_EN_ORIGEN -> nuevo == EstadoPedido.EN_TRANSITO || nuevo == EstadoPedido.EN_REPARTO;
@@ -416,6 +449,42 @@ public class Pedido {
     public LocalDateTime getFechaLimiteVerificacionDireccion() { return fechaLimiteVerificacionDireccion; }
     public LocalDateTime getFechaUltimaIncidencia() { return fechaUltimaIncidencia; }
     public String getIndicacionesAcceso() { return indicacionesAcceso; }
+    public boolean isRequiereVerificacionEdad() { return Boolean.TRUE.equals(requiereVerificacionEdad); }
+
+    /**
+     * HU-13 CA-4: activa o desactiva la verificación de edad 18+. Solo se puede antes de la validación del
+     * operador: en SOLICITADO sin fecha de validación (al aprobar, validar() deja SOLICITADO con fecha) o en
+     * CORRECCION_SOLICITADA. Que quien lo cambia sea el remitente lo verifica el servicio. El trigger
+     * trg_pedidos_verificacion_edad_editable (V25) impone la misma regla en la BD.
+     */
+    public void definirVerificacionEdad(boolean requiere) {
+        boolean editable = (estado == EstadoPedido.SOLICITADO && fechaValidacion == null)
+                || estado == EstadoPedido.CORRECCION_SOLICITADA;
+        if (!editable) {
+            throw new IllegalStateException("La verificación de edad ya no se puede modificar en este estado del envío");
+        }
+        this.requiereVerificacionEdad = requiere;
+    }
+
+    /**
+     * HU-13 CA-7: el conductor registró "Verificación no aprobada". El envío pasa al estado final
+     * "Entrega fallida (Verificación de edad no aprobada)" y el servicio inicia el retorno a bodega.
+     * Solo aplica a envíos 18+ en proceso de entrega.
+     */
+    public void fallarPorVerificacionEdad(LocalDateTime ahora) {
+        if (estado != null && estado.esFinal()) {
+            throw new TransicionEstadoInvalidaException(estado, EstadoPedido.ENTREGA_FALLIDA_VERIFICACION_EDAD);
+        }
+        if (!isRequiereVerificacionEdad()) {
+            throw new IllegalStateException("El envío no requiere verificación de edad");
+        }
+        if (!ESTADOS_EN_ENTREGA.contains(estado)) {
+            throw new TransicionEstadoInvalidaException(estado, EstadoPedido.ENTREGA_FALLIDA_VERIFICACION_EDAD);
+        }
+        this.estado = EstadoPedido.ENTREGA_FALLIDA_VERIFICACION_EDAD;
+        this.fechaEntregaFallida = ahora;
+        this.fechaUltimaIncidencia = ahora;
+    }
     public EstadoPedido getEstadoAntesPausa() { return estadoAntesPausa; }
     public Long getPedidoOrigenDevolucionId() { return pedidoOrigenDevolucionId; }
     public String getNumeroTrackingOrigenDevolucion() { return numeroTrackingOrigenDevolucion; }

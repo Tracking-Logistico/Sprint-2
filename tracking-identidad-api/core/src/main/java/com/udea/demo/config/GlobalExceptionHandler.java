@@ -1,6 +1,10 @@
 package com.udea.demo.config;
 
+import com.udea.demo.usuarios.domain.exception.CifradoIdentidadException;
+import com.udea.demo.usuarios.domain.exception.DatoIdentidadInvalidoException;
+import com.udea.demo.usuarios.domain.exception.DatosIdentidadInmutablesException;
 import com.udea.demo.usuarios.domain.exception.EntregaCorreoException;
+import com.udea.demo.usuarios.domain.exception.IdentidadNoRegistrableException;
 import com.udea.demo.usuarios.domain.exception.PerfilRolIncompletoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +40,38 @@ public class GlobalExceptionHandler {
                 errors.putIfAbsent(field.getField(), field.getDefaultMessage() == null
                         ? "Campo inválido" : field.getDefaultMessage()));
         return ResponseEntity.badRequest().body(errors);
+    }
+
+    /** HU-13 CA-1: mensaje específico por campo. El valor recibido nunca se devuelve. */
+    @ExceptionHandler(DatoIdentidadInvalidoException.class)
+    public ResponseEntity<Map<String, String>> datoIdentidadInvalido(DatoIdentidadInvalidoException ex) {
+        Map<String, String> errors = new LinkedHashMap<>();
+        errors.put("error", "Revisa los campos señalados");
+        errors.put(ex.getCampo(), ex.getMessage());
+        return ResponseEntity.badRequest().body(errors);
+    }
+
+    /** HU-13 CA-3: error controlado si se intenta modificar datos de identidad ya registrados. */
+    @ExceptionHandler(DatosIdentidadInmutablesException.class)
+    public ResponseEntity<Map<String, String>> identidadInmutable(DatosIdentidadInmutablesException ex) {
+        log.warn("Intento de modificar datos de identidad bloqueados");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "code", "IDENTIDAD_INMUTABLE",
+                "error", ex.getMessage()));
+    }
+
+    /** HU-13 13-BE-01: la cédula no se puede asociar. El mensaje no revela si ya existe en otra cuenta. */
+    @ExceptionHandler(IdentidadNoRegistrableException.class)
+    public ResponseEntity<Map<String, String>> identidadNoRegistrable(IdentidadNoRegistrableException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", IdentidadNoRegistrableException.MENSAJE));
+    }
+
+    /** HU-13 CA-8: un fallo de cifrado no expone detalles. Se registra sin traza para no arrastrar datos de la causa. */
+    @ExceptionHandler(CifradoIdentidadException.class)
+    public ResponseEntity<Map<String, String>> cifradoIdentidad(CifradoIdentidadException ex) {
+        log.error("Fallo al procesar un dato de identidad protegido: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "No fue posible completar la operación"));
     }
 
     @ExceptionHandler(PerfilRolIncompletoException.class)

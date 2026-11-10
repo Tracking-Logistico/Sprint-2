@@ -17,7 +17,7 @@ public class PedidoMapeador {
                 p.getCiudadOrigen(), p.getCiudadDestino(), p.getCodigoPostalOrigen(), p.getCodigoPostalDestino(),
                 p.getRemitenteNombre(), p.getRemitenteEmail(), p.getRemitenteTelefono(), p.getFechaEstimadaEntrega(),
                 p.getIndicacionesAcceso(), p.getFechaEntregaReprogramada(), p.getNumeroTrackingOrigenDevolucion(),
-                referenciaDevolucion(p));
+                referenciaDevolucion(p), p.isRequiereVerificacionEdad());
     }
 
     public PedidoClienteResponseDTO mapCliente(Pedido p) {
@@ -28,7 +28,7 @@ public class PedidoMapeador {
         return new PedidoClienteResponseDTO(p.getId(), p.getNumeroPedido(), p.getNumeroTracking(),
                 p.getRemitenteNombre(), p.getDestinatarioNombre(), p.getEstado(),
                 p.getFechaCreacion(), fechaEstimada, p.getNumeroTrackingOrigenDevolucion(),
-                referenciaDevolucion(p));
+                referenciaDevolucion(p), p.isRequiereVerificacionEdad());
     }
 
     private static String referenciaDevolucion(Pedido p) {

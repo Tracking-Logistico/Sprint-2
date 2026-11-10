@@ -44,23 +44,40 @@ public class RecepcionPedidoUseCase {
                 dto.descripcionPaquete(), dto.pesoKg(), dto.largoCm(), dto.anchoCm(), dto.altoCm(),
                 dto.tipoServicio(), generarNumeroPedidoUnico(), sugerida, dto.destinatarioNombre(), dto.destinatarioTelefono(),
                 remitente.getNombre(), remitente.getEmail(), dto.remitenteTelefono(), dto.destinatarioEmail());
+        // HU-13 CA-4: solo el remitente (rol CLIENTE en POST /pedidos) define la verificación de edad 18+.
+        pedido.definirVerificacionEdad(Boolean.TRUE.equals(dto.requiereVerificacionEdad()));
         Pedido guardado = pedidos.save(pedido);
         evento(guardado.getId(), actores.actorActual().getId(), "PEDIDO_SOLICITADO", null,
                 "Pedido creado por el cliente");
+        if (guardado.isRequiereVerificacionEdad()) {
+            evento(guardado.getId(), remitente.getId(), EVENTO_VERIFICACION_EDAD, CAMPO_VERIFICACION_EDAD,
+                    "Verificación de edad obligatoria (18+) activada por el remitente" + origenAuditoria());
+        }
         return mapeador.map(guardado);
     }
 
     @Transactional
     public PedidoResponseDTO corregir(Long id, RecibirPedidoRequestDTO dto) {
         limites.validar(dto);
-        Pedido p = pedidos.findByIdForUpdate(id).orElseThrow(() -> new PedidoNoEncontradoException(id));
-        if (!p.getClienteId().equals(actores.clienteActualId())) throw new AccessDeniedException("El pedido no pertenece al cliente autenticado");
+        // HU-13 anti-IDOR/anti-enumeración: un envío inexistente o ajeno (incluido el del que se es solo destinatario)
+        // responde el mismo 403, así no se distingue qué ids existen.
+        Long clienteActual = actores.clienteActualId();
+        Pedido p = pedidos.findByIdForUpdate(id)
+                .filter(pedido -> pedido.getClienteId().equals(clienteActual))
+                .orElseThrow(() -> new AccessDeniedException("El pedido no pertenece al cliente autenticado"));
         Prioridad sugerida = prioridadStrategy.sugerir(dto.tipoServicio(), dto.pesoKg());
         p.corregir(dto.direccionOrigen(), dto.ciudadOrigen(), dto.codigoPostalOrigen(), dto.direccionDestino(),
                 dto.ciudadDestino(), dto.codigoPostalDestino(), dto.descripcionPaquete(), dto.pesoKg(), dto.largoCm(),
                 dto.anchoCm(), dto.altoCm(), dto.tipoServicio(), dto.destinatarioNombre(), dto.destinatarioTelefono(),
                 dto.remitenteTelefono(), sugerida, dto.destinatarioEmail());
         evento(id, actores.actorActual().getId(), "PEDIDO_CORREGIDO", null, "El cliente actualizó la información observada");
+        // HU-13 CA-4: durante la corrección el remitente puede cambiar el flag; si no lo envía, se conserva.
+        if (dto.requiereVerificacionEdad() != null && dto.requiereVerificacionEdad() != p.isRequiereVerificacionEdad()) {
+            p.definirVerificacionEdad(dto.requiereVerificacionEdad());
+            evento(id, actores.actorActual().getId(), EVENTO_VERIFICACION_EDAD, CAMPO_VERIFICACION_EDAD,
+                    (dto.requiereVerificacionEdad() ? "Verificación de edad obligatoria (18+) activada por el remitente"
+                            : "Verificación de edad obligatoria (18+) desactivada por el remitente") + origenAuditoria());
+        }
         return mapeador.map(pedidos.save(p));
     }
 
@@ -71,6 +88,30 @@ public class RecepcionPedidoUseCase {
         }
         throw new IllegalStateException("No fue posible generar un identificador único de pedido");
     }
+
+    static final String EVENTO_VERIFICACION_EDAD = "VERIFICACION_EDAD_CONFIGURADA";
+    static final java.util.Set<String> ORIGENES = java.util.Set.of("WEB", "MOVIL");
+
+    /**
+     * HU-13 regla 7: origen del cambio del flag, tomado de la cabecera opcional X-Origen (lista blanca WEB|MOVIL,
+     * WEB por defecto). Un valor fuera de la lista responde 400 y no se refleja.
+     */
+    static String origenAuditoria() {
+        String origen = "WEB";
+        var atributos = org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+        if (atributos instanceof org.springframework.web.context.request.ServletRequestAttributes servlet) {
+            String cabecera = servlet.getRequest().getHeader("X-Origen");
+            if (cabecera != null && !cabecera.isBlank()) {
+                origen = cabecera.strip().toUpperCase(java.util.Locale.ROOT);
+                if (!ORIGENES.contains(origen)) {
+                    throw new org.springframework.web.server.ResponseStatusException(
+                            org.springframework.http.HttpStatus.BAD_REQUEST);
+                }
+            }
+        }
+        return " (origen " + origen + ")";
+    }
+    static final String CAMPO_VERIFICACION_EDAD = "requiereVerificacionEdad";
 
     private void evento(Long pedidoId, Long usuarioId, String tipo, String campo, String detalle) {
         historial.registrar(pedidoId, usuarioId, tipo, campo, detalle, LocalDateTime.now());

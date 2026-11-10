@@ -31,7 +31,7 @@ class CrearUsuarioInternoCommandTest {
     private CrearUsuarioInternoCommand operadorValido() {
         return new CrearUsuarioInternoCommand(
                 "Laura Ops", "laura.ops@tracking.com", "3001112233",
-                Rol.OPERADOR, "Calle 10 # 40-20, Medellín", null, "OP-001");
+                Rol.OPERADOR, "Calle 10 # 40-20, Medellín", null, "OP-001", "1000000001", "1990-05-17");
     }
 
     @Test
@@ -52,7 +52,7 @@ class CrearUsuarioInternoCommandTest {
     void conductorValido_sinViolaciones() {
         CrearUsuarioInternoCommand cmd = new CrearUsuarioInternoCommand(
                 "Julián Castaño", "julian.castano@tracking.com", "3002223344",
-                Rol.CONDUCTOR, "Calle 33 # 65-12, Medellín", "LIC-B2-998877", null);
+                Rol.CONDUCTOR, "Calle 33 # 65-12, Medellín", "LIC-B2-998877", null, "1000000002", "1985-11-30");
 
         assertThat(validator.validate(cmd)).isEmpty();
         assertThat(cmd.rol()).isEqualTo(Rol.CONDUCTOR);

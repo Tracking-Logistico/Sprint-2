@@ -44,6 +44,58 @@ class UsuarioInternoCliTest {
         verifyNoInteractions(service);
     }
 
+    private void opcionesCrear(String cedula, String fecha) {
+        when(args.getNonOptionArgs()).thenReturn(List.of("crear"));
+        when(args.getOptionNames()).thenReturn(Set.of("nombre", "email", "rol", "licencia", "numeroCedula", "fechaNacimiento"));
+        when(args.getOptionValues("nombre")).thenReturn(List.of("Conductor Sintetico"));
+        when(args.getOptionValues("email")).thenReturn(List.of("cond@ejemplo.invalid"));
+        when(args.getOptionValues("rol")).thenReturn(List.of("CONDUCTOR"));
+        when(args.getOptionValues("licencia")).thenReturn(List.of("LIC-123"));
+        when(args.getOptionValues("numeroCedula")).thenReturn(List.of(cedula));
+        when(args.getOptionValues("fechaNacimiento")).thenReturn(List.of(fecha));
+        when(validator.validate(any())).thenReturn(Collections.emptySet());
+    }
+
+    @Test
+    @DisplayName("HU-13: crear mapea la cédula y la fecha de nacimiento al comando")
+    void run_crear_mapeaIdentidad() {
+        opcionesCrear("1000000001", "1990-05-17");
+        when(service.crear(any(CrearUsuarioInternoCommand.class)))
+                .thenReturn(new ResultadoCreacionUsuarioInterno(1L, "cond@ejemplo.invalid", Rol.CONDUCTOR, "Temporal-1"));
+
+        cli.run(args);
+
+        org.mockito.ArgumentCaptor<CrearUsuarioInternoCommand> cmd =
+                org.mockito.ArgumentCaptor.forClass(CrearUsuarioInternoCommand.class);
+        verify(service).crear(cmd.capture());
+        org.assertj.core.api.Assertions.assertThat(cmd.getValue().numeroCedula()).isEqualTo("1000000001");
+        org.assertj.core.api.Assertions.assertThat(cmd.getValue().fechaNacimiento()).isEqualTo("1990-05-17");
+        org.assertj.core.api.Assertions.assertThat(cmd.getValue().toString()).doesNotContain("1000000001");
+    }
+
+    @Test
+    @DisplayName("Negativo: un conflicto de BD no imprime el detalle del driver (valores, hash de la cédula)")
+    void run_crear_conflictoNoFiltraDetalle() {
+        opcionesCrear("1000000001", "1990-05-17");
+        String detalleDriver = "Key (numero_cedula_hash)=(" + "ab".repeat(32) + ") already exists";
+        when(service.crear(any(CrearUsuarioInternoCommand.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException(detalleDriver));
+        java.io.ByteArrayOutputStream err = new java.io.ByteArrayOutputStream();
+        java.io.PrintStream original = System.err;
+        System.setErr(new java.io.PrintStream(err, true, java.nio.charset.StandardCharsets.UTF_8));
+        try {
+            assertThatThrownBy(() -> cli.run(args))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage(UsuarioInternoCli.MENSAJE_CONFLICTO)
+                    .hasNoCause();
+        } finally {
+            System.setErr(original);
+        }
+        org.assertj.core.api.Assertions.assertThat(err.toString(java.nio.charset.StandardCharsets.UTF_8))
+                .contains(UsuarioInternoCli.MENSAJE_CONFLICTO)
+                .doesNotContain("numero_cedula_hash").doesNotContain("ab".repeat(32));
+    }
+
     @Test
     @DisplayName("Comando desconocido muestra mensaje y no falla")
     void run_comandoDesconocido_noFalla() {

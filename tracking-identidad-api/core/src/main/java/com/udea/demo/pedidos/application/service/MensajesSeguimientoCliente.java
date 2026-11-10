@@ -21,6 +21,8 @@ public final class MensajesSeguimientoCliente {
             case DEVOLUCION_AL_REMITENTE -> "Tu paquete está siendo devuelto al remitente";
             case ENTREGA_FALLIDA_CERRADA -> "La entrega no pudo completarse y el caso fue cerrado";
             case RECHAZADO -> "Tu solicitud de envío no fue aprobada";
+            // HU-13 CA-7: lenguaje de cliente, sin códigos internos ni datos del destinatario.
+            case ENTREGA_FALLIDA_VERIFICACION_EDAD -> "No pudimos entregar tu paquete porque no fue posible verificar la mayoría de edad de quien lo recibe; el paquete regresará a nuestra bodega";
             default -> "Tu envío está en proceso";
         };
     }

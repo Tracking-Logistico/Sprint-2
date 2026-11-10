@@ -31,7 +31,7 @@ class RegistroClienteRequestDTOTest {
         return new RegistroClienteRequestDTO(
                 "Ana María Gómez", "ana.gomez@tracking.com", "Password123!", "Password123!",
                 "+573001234567", "Carrera 43A # 12-34, Medellín", "Medellín",
-                true, "T&C-v1.0", true, "PDP-v1.0");
+                true, "T&C-v1.0", true, "PDP-v1.0", "1000000001", "1990-05-17");
     }
 
     @Test
@@ -59,7 +59,7 @@ class RegistroClienteRequestDTOTest {
         RegistroClienteRequestDTO dto = new RegistroClienteRequestDTO(
                 nombre, "ana.gomez@tracking.com", "Password123!", "Password123!",
                 "+573001234567", "Carrera 43A # 12-34", "Medellín",
-                true, "T&C-v1.0", true, "PDP-v1.0");
+                true, "T&C-v1.0", true, "PDP-v1.0", "1000000001", "1990-05-17");
 
         assertThat(validator.validate(dto)).anyMatch(v -> v.getPropertyPath().toString().equals("nombre"));
     }
@@ -70,7 +70,7 @@ class RegistroClienteRequestDTOTest {
         RegistroClienteRequestDTO dto = new RegistroClienteRequestDTO(
                 "Ana María Gómez", "no-es-email", "Password123!", "Password123!",
                 "+573001234567", "Carrera 43A # 12-34", "Medellín",
-                true, "T&C-v1.0", true, "PDP-v1.0");
+                true, "T&C-v1.0", true, "PDP-v1.0", "1000000001", "1990-05-17");
 
         assertThat(validator.validate(dto)).anyMatch(v -> v.getPropertyPath().toString().equals("email"));
     }
@@ -82,7 +82,7 @@ class RegistroClienteRequestDTOTest {
         RegistroClienteRequestDTO dto = new RegistroClienteRequestDTO(
                 "Ana María Gómez", "ana.gomez@tracking.com", password, password,
                 "+573001234567", "Carrera 43A # 12-34", "Medellín",
-                true, "T&C-v1.0", true, "PDP-v1.0");
+                true, "T&C-v1.0", true, "PDP-v1.0", "1000000001", "1990-05-17");
 
         assertThat(validator.validate(dto)).anyMatch(v -> v.getPropertyPath().toString().equals("password"));
     }
@@ -93,7 +93,7 @@ class RegistroClienteRequestDTOTest {
         RegistroClienteRequestDTO dto = new RegistroClienteRequestDTO(
                 "Ana María Gómez", "ana.gomez@tracking.com", "Password123!", "Password123!",
                 "+573001234567", "Carrera 43A # 12-34", "Medellín",
-                false, "T&C-v1.0", true, "PDP-v1.0");
+                false, "T&C-v1.0", true, "PDP-v1.0", "1000000001", "1990-05-17");
 
         assertThat(validator.validate(dto)).anyMatch(v -> v.getPropertyPath().toString().equals("aceptoTerminos"));
     }
@@ -104,7 +104,7 @@ class RegistroClienteRequestDTOTest {
         RegistroClienteRequestDTO dto = new RegistroClienteRequestDTO(
                 "Ana María Gómez", "ana.gomez@tracking.com", "Password123!", "Password123!",
                 "+573001234567", "Carrera 43A # 12-34", "Medellín",
-                true, "T&C-v1.0", false, "PDP-v1.0");
+                true, "T&C-v1.0", false, "PDP-v1.0", "1000000001", "1990-05-17");
 
         assertThat(validator.validate(dto)).anyMatch(v -> v.getPropertyPath().toString().equals("aceptoPoliticaDatos"));
     }
@@ -116,7 +116,7 @@ class RegistroClienteRequestDTOTest {
         RegistroClienteRequestDTO dto = new RegistroClienteRequestDTO(
                 "Ana María Gómez", "ana.gomez@tracking.com", "Password123!", "Password123!",
                 telefono, "Carrera 43A # 12-34", "Medellín",
-                true, "T&C-v1.0", true, "PDP-v1.0");
+                true, "T&C-v1.0", true, "PDP-v1.0", "1000000001", "1990-05-17");
 
         assertThat(validator.validate(dto)).anyMatch(v -> v.getPropertyPath().toString().equals("telefono"));
     }

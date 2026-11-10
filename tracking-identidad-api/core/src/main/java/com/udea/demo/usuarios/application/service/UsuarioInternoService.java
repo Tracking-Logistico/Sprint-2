@@ -10,6 +10,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Service
@@ -24,6 +25,7 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
     private final ActorAuthorizationService actorAuthorizationService;
     private final SesionUsuarioRepository sesionRepository;
     private final PasswordPolicyService passwordPolicyService;
+    private final ProteccionDatosIdentidadService proteccionIdentidad;
 
     public UsuarioInternoService(UsuarioRepository usuarioRepository,
                                  ClienteRepository clienteRepository,
@@ -33,7 +35,9 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
                                  PasswordTemporalService passwordTemporalService,
                                  ActorAuthorizationService actorAuthorizationService,
                                  SesionUsuarioRepository sesionRepository,
-                                 PasswordPolicyService passwordPolicyService) {
+                                 PasswordPolicyService passwordPolicyService,
+                                 ProteccionDatosIdentidadService proteccionIdentidad) {
+        this.proteccionIdentidad = proteccionIdentidad;
         this.usuarioRepository = usuarioRepository;
         this.clienteRepository = clienteRepository;
         this.conductorRepository = conductorRepository;
@@ -69,6 +73,14 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
             throw new CodigoEmpleadoRequeridoException();
         }
 
+        // HU-13 CA-1: cédula y fecha obligatorias, validadas en el servidor. Si la cédula ya pertenece a otra
+        // cuenta, el mensaje es genérico. La constraint uk_usuarios_numero_cedula_hash cubre las carreras.
+        DatosIdentidadProtegidos identidad = proteccionIdentidad.protegerHoy(command.numeroCedula(),
+                command.fechaNacimiento());
+        if (usuarioRepository.existsByNumeroCedulaHash(identidad.numeroCedulaHash())) {
+            throw new IdentidadNoRegistrableException();
+        }
+
         String passwordTemporal = passwordTemporalService.generar();
 
         Usuario usuario = Usuario.builder()
@@ -83,6 +95,7 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
                 .activo(true)
                 .fechaCreacion(LocalDateTime.now())
                 .build();
+        usuario.registrarDatosIdentidad(identidad, Instant.now());
 
         Usuario guardado = usuarioRepository.save(usuario);
 

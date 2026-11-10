@@ -79,7 +79,8 @@ public class InicioSesionUseCase {
         LocalDateTime bloqueadoHasta = intentos >= MAX_INTENTOS
                 ? ahora.plusMinutes(minutosBloqueo) : null;
         intentoRepository.save(new IntentoInicioSesion(email, usuario, ahora, bloqueadoHasta));
-        String safeEmail = sanitizarLog(email);
+        // Ley 1581: el correo del intento fallido se registra enmascarado (a***@dominio).
+        String safeEmail = com.udea.demo.config.logging.MensajeEnmascaradoConverter.enmascararEmail(sanitizarLog(email));
         String safeIp = sanitizarLog(ip);
         String safeUserAgent = sanitizarLog(userAgent);
         log.warn("Intento de inicio de sesión fallido para {} desde {} ({})",

@@ -47,6 +47,7 @@ class PanelConductorServiceTest {
     @Mock private ConductorRepository conductores;
     @Mock private PedidoServiceI pedidos;
     @Mock private ActorAuthorizationService actores;
+    @Mock private com.udea.demo.rutas.interfaces.persistence.VerificacionEdadLogRepository verificacionesEdad;
 
     @InjectMocks
     private PanelConductorService service;

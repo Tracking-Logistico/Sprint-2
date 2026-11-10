@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  HU-13 CA-8 / Ley 1581: todos los mensajes de log pasan por MensajeEnmascaradoConverter, que enmascara
+  secuencias con forma de documento (****1234). Por lo demás conserva la configuración por defecto de
+  Spring Boot (consola, archivo opcional y logging.level.*).
+-->
+<configuration>
+    <conversionRule conversionWord="m" class="com.udea.demo.config.logging.MensajeEnmascaradoConverter"/>
+    <conversionRule conversionWord="msg" class="com.udea.demo.config.logging.MensajeEnmascaradoConverter"/>
+    <conversionRule conversionWord="message" class="com.udea.demo.config.logging.MensajeEnmascaradoConverter"/>
+    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+</configuration>

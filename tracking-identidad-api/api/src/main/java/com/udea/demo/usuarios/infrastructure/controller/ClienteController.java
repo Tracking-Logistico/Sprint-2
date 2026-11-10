@@ -3,6 +3,10 @@ package com.udea.demo.usuarios.infrastructure.controller;
 import com.udea.demo.usuarios.application.dto.ActualizarPerfilRequestDTO;
 import com.udea.demo.usuarios.application.dto.ClienteResponseDTO;
 import com.udea.demo.usuarios.application.dto.RegistroClienteRequestDTO;
+import com.udea.demo.usuarios.application.dto.RegistroClienteResponseDTO;
+import com.udea.demo.usuarios.application.dto.CompletarIdentidadRequestDTO;
+import com.udea.demo.usuarios.application.dto.IdentidadPerfilResponseDTO;
+import com.udea.demo.usuarios.interfaces.services.IdentidadPerfilServiceI;
 import com.udea.demo.usuarios.application.dto.UsuarioResponseDTO;
 import com.udea.demo.usuarios.interfaces.services.ClienteServiceI;
 
@@ -18,15 +22,34 @@ import org.springframework.web.bind.annotation.*;
 public class ClienteController {
 
     private final ClienteServiceI clienteService;
+    private final IdentidadPerfilServiceI identidadPerfil;
 
-    public ClienteController(ClienteServiceI usuarioService) {
+    public ClienteController(ClienteServiceI usuarioService, IdentidadPerfilServiceI identidadPerfil) {
         this.clienteService = usuarioService;
+        this.identidadPerfil = identidadPerfil;
     }
 
+    /** HU-13 CA-2 y CA-3: identidad del propio cliente en solo lectura (cédula enmascarada, edad calculada en el servidor). */
+    @GetMapping("/me/identidad")
+    public ResponseEntity<IdentidadPerfilResponseDTO> obtenerIdentidad() {
+        return ResponseEntity.ok(identidadPerfil.consultarPropia());
+    }
+
+    /**
+     * HU-13: completa la cédula y la fecha de nacimiento de un perfil incompleto (V26). Solo se puede una vez:
+     * después responde 409 IDENTIDAD_INMUTABLE. El origen (WEB o MOVIL) es opcional y se usa en la auditoría.
+     */
+    @PutMapping("/me/identidad")
+    public ResponseEntity<IdentidadPerfilResponseDTO> completarIdentidad(
+            @Valid @RequestBody CompletarIdentidadRequestDTO dto,
+            @RequestHeader(name = "X-Origen", required = false) String origen) {
+        return ResponseEntity.ok(identidadPerfil.completarPropia(dto, origen));
+    }
+
+    /** HU-13: 201 con un cuerpo neutro idéntico, se haya creado o no la cuenta (anti-enumeración de cédula). */
     @PostMapping("/registro")
-    public ResponseEntity<ClienteResponseDTO> registrarCliente(@Valid @RequestBody RegistroClienteRequestDTO dto) {
-        ClienteResponseDTO respuesta = clienteService.registrarCliente(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
+    public ResponseEntity<RegistroClienteResponseDTO> registrarCliente(@Valid @RequestBody RegistroClienteRequestDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(clienteService.registrarCliente(dto));
     }
 
     @GetMapping("/verificar")

@@ -9,6 +9,7 @@ import com.udea.demo.usuarios.interfaces.services.UsuarioInternoServiceI;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import jakarta.validation.Validator;
@@ -20,6 +21,7 @@ import java.util.Map;
 @Component
 @Profile("cli")
 public class UsuarioInternoCli implements ApplicationRunner {
+    static final String MENSAJE_CONFLICTO = "Los datos entran en conflicto con un usuario existente";
 
     private final UsuarioInternoServiceI service;
     private final Validator validator;
@@ -46,6 +48,11 @@ public class UsuarioInternoCli implements ApplicationRunner {
                 case "desactivar" -> desactivar(opts);
                 default -> System.out.println("Comando desconocido: " + comando);
             }
+        } catch (DataIntegrityViolationException ex) {
+            // El mensaje del driver incluye los valores en conflicto (por ejemplo, el hash de la cédula).
+            // No se imprime ni se propaga la causa.
+            System.err.println("ERROR: " + MENSAJE_CONFLICTO);
+            throw new IllegalStateException(MENSAJE_CONFLICTO);
         } catch (RuntimeException ex) {
             System.err.println("ERROR: " + ex.getMessage());
             throw ex;
@@ -60,7 +67,9 @@ public class UsuarioInternoCli implements ApplicationRunner {
                 Rol.valueOf(o.getOrDefault("rol", "").toUpperCase()),
                 o.get("direccion"),
                 o.get("licencia"),
-                o.get("codigoEmpleado")
+                o.get("codigoEmpleado"),
+                o.get("numeroCedula"),
+                o.get("fechaNacimiento")
         );
 
         validar(cmd);
