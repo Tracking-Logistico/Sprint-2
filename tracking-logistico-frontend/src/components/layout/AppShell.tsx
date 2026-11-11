@@ -1,3 +1,4 @@
+import { AssistantWidget } from "@/features/assistant/AssistantWidget";
 import { Outlet, useNavigate } from "react-router-dom";
 import { PackageCheck } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
@@ -10,7 +11,7 @@ import {
 import { AppSidebar } from "@/components/layout/AppSidebar";
 
 export function AppShell() {
-  const { role, signOut } = useAuthStore();
+  const { role, signOut, accessToken, userId } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -24,6 +25,7 @@ export function AppShell() {
       className="min-h-screen bg-background text-foreground"
     >
       <SessionIdleGuard />
+      {role === "OPERADOR" && accessToken && <AssistantWidget key={userId} token={accessToken} />}
       <AppSidebar role={role} onSignOut={handleSignOut} />
       <SidebarInset className="min-h-screen bg-background">
         {/* Barra superior visible solo en celular con SidebarTrigger para abrir el menú */}
