@@ -89,7 +89,7 @@ public class SecurityConfig {
             .addFilterBefore(dbaApiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(sesionAuthenticationFilter, DbaApiKeyAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> {
-                auth.dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll();
+                auth.dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD, DispatcherType.ASYNC).permitAll();
                 auth.requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll();
                 if (esDev || environment.getProperty("SWAGGER_ENABLED", Boolean.class, false)) {
                     auth.requestMatchers("/h2-console/**", "/swagger-ui/**",
@@ -99,6 +99,7 @@ public class SecurityConfig {
                 auth.requestMatchers("/error", "/api/v1/auth/login", "/api/v1/auth/refresh",
                                  "/api/v1/auth/password/**", "/api/v1/clientes/registro",
                                  "/api/v1/clientes/verificar", "/api/v1/clientes/verificacion/reenviar").permitAll()
+                .requestMatchers("/api/v1/assistant/**").hasRole("OPERADOR")
                 .requestMatchers("/api/v1/admin/**").hasRole("DBA")
                 .requestMatchers("/api/v1/auth/logout").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos").hasRole("CLIENTE")

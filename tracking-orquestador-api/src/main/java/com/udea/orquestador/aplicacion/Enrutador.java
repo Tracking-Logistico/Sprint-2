@@ -13,7 +13,7 @@ public final class Enrutador {
         }
         if (coincide(ruta, "/api/v1/auth") || coincide(ruta, "/api/v1/clientes")
                 || coincide(ruta, "/api/v1/usuarios") || coincide(ruta, "/api/v1/notificaciones")
-                || coincide(ruta, "/api/v1/admin")) return Optional.of(Servicio.IDENTIDAD);
+                || coincide(ruta, "/api/v1/admin") || coincide(ruta, "/api/v1/assistant")) return Optional.of(Servicio.IDENTIDAD);
         if (ruta.equals("/swagger-ui.html") || coincide(ruta, "/swagger-ui")
                 || coincide(ruta, "/v3/api-docs")) return Optional.of(Servicio.IDENTIDAD);
         return Optional.empty();
