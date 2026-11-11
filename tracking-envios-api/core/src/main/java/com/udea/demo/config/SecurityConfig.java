@@ -104,6 +104,8 @@ public class SecurityConfig {
                     .hasAnyRole("CLIENTE", "OPERADOR", "CONDUCTOR", "DBA")
                 .requestMatchers("/api/v1/geografia/**").hasAnyRole("OPERADOR", "DBA")
                 .requestMatchers("/api/v1/auth/logout").authenticated()
+                .requestMatchers("/api/v1/pedidos/anomalias", "/api/v1/pedidos/anomalias/**",
+                                 "/api/v1/pedidos/*/recepcion-oficina").hasRole("OPERADOR")
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos").hasRole("CLIENTE")
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos/*/ubicaciones")
                     .hasAnyRole("OPERADOR", "CONDUCTOR")

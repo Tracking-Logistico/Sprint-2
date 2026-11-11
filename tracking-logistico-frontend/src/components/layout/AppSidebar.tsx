@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Boxes,
+  Bell,
   ClipboardList,
   LogOut,
   Map,
@@ -27,6 +28,7 @@ interface NavItemConfig {
 }
 
 const NAV_ITEMS: NavItemConfig[] = [
+  { label: "Alertas", to: "/panel/alertas", icon: Bell, roles: ["OPERADOR"] },
   {
     label: "Resumen",
     to: "/panel",

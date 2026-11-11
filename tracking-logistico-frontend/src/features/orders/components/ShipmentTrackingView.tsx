@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ShipmentTrackingResponse } from "@/types/api";
+import { AnomalyBanner } from "./AnomalyBanner";
 import { RescheduleDeliveryForm } from "./RescheduleDeliveryForm";
 
 const statusLabels: Record<string, string> = {
@@ -75,6 +76,7 @@ export function ShipmentTrackingView({
 
   return (
     <div className="space-y-4">
+      <AnomalyBanner tracking={shipment.numeroTracking} />
       <Card>
         <CardHeader>
           <CardTitle className="flex flex-wrap items-center justify-between gap-3">
