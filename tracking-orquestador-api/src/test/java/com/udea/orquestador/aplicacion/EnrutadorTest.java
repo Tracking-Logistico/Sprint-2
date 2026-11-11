@@ -44,6 +44,7 @@ class EnrutadorTest {
                 Arguments.of("/api/v1/notificaciones", Servicio.IDENTIDAD),
                 Arguments.of("/api/v1/notificaciones/preferencias", Servicio.IDENTIDAD),
                 Arguments.of("/api/v1/admin", Servicio.IDENTIDAD),
+                Arguments.of("/api/v1/assistant/query", Servicio.IDENTIDAD),
                 Arguments.of("/api/v1/admin/usuarios", Servicio.IDENTIDAD),
                 Arguments.of("/swagger-ui.html", Servicio.IDENTIDAD),
                 Arguments.of("/swagger-ui", Servicio.IDENTIDAD),

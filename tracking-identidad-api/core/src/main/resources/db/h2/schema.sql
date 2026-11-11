@@ -18,3 +18,30 @@ CREATE TABLE IF NOT EXISTS notificaciones_conductor (
     leida BOOLEAN NOT NULL DEFAULT FALSE
 );
 CREATE INDEX IF NOT EXISTS idx_notificaciones_conductor ON notificaciones_conductor(id_usuario_conductor, fecha DESC);
+
+CREATE TABLE IF NOT EXISTS assistant_session (
+    id UUID PRIMARY KEY,
+    usuario_id BIGINT NOT NULL REFERENCES usuarios(id),
+    creada_en TIMESTAMP WITH TIME ZONE NOT NULL,
+    expira_en TIMESTAMP WITH TIME ZONE NOT NULL,
+    UNIQUE (id,usuario_id),
+    CHECK (expira_en>creada_en)
+);
+CREATE TABLE IF NOT EXISTS assistant_query_log (
+    solicitud_id UUID NOT NULL,
+    session_id UUID NOT NULL,
+    usuario_id BIGINT NOT NULL REFERENCES usuarios(id),
+    fecha TIMESTAMP WITH TIME ZONE NOT NULL,
+    intencion VARCHAR(24) NOT NULL CHECK (intencion IN ('PERFIL','PAQUETE','FUERA_DE_ALCANCE')),
+    resultado VARCHAR(24) NOT NULL CHECK (resultado IN ('RESUELTA','FUERA_DE_ALCANCE','SIN_DATOS','ERROR')),
+    origen VARCHAR(12) NOT NULL CHECK (origen IN ('WEB','MOVIL','QR','OFFLINE')),
+    PRIMARY KEY (usuario_id,solicitud_id),
+    FOREIGN KEY (session_id,usuario_id) REFERENCES assistant_session(id,usuario_id)
+);
+CREATE INDEX IF NOT EXISTS idx_assistant_query_fecha ON assistant_query_log(fecha);
+CREATE INDEX IF NOT EXISTS idx_assistant_query_session ON assistant_query_log(session_id);
+CREATE TABLE IF NOT EXISTS assistant_rate_limit (
+    usuario_id BIGINT PRIMARY KEY REFERENCES usuarios(id),
+    minuto BIGINT NOT NULL,
+    peticiones INTEGER NOT NULL CHECK (peticiones BETWEEN 1 AND 31)
+);
