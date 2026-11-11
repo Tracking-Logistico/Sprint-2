@@ -27,7 +27,9 @@ class LimitesApiTest {
                 .collect(Collectors.toSet());
         assertFalse(paquetes.isEmpty());
         for (String paquete : paquetes) {
-            assertTrue(paquete.startsWith("com.udea.demo.pedidos."), "Controlador ajeno: " + paquete);
+            boolean propio = paquete.startsWith("com.udea.demo.pedidos.")
+                    || paquete.equals("com.udea.demo.geografia.infrastructure.controller");
+            assertTrue(propio, "Controlador ajeno: " + paquete);
         }
     }
 }

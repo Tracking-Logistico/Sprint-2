@@ -1,5 +1,6 @@
 import type {
   ApiErrorShape,
+  AnomalyPage, Anomaly, AnomalyParameters, ClientAnomaly, PendingReceipt, AnomalyState, AnomalyType,
   ClientResponse,
   DriverResponse,
   LabelResponse,
@@ -485,3 +486,21 @@ export function getApiError(
   }
   return fallback;
 }
+
+export const anomaliesApi = {
+  list: (state: AnomalyState, type: AnomalyType | '', page: number, token: string) =>
+    request<AnomalyPage>(`/pedidos/anomalias?estado=${state}&pagina=${page}&tamano=20${type ? `&tipo=${type}` : ''}`, {}, token),
+  detail: (id: number, token: string) => request<Anomaly>(`/pedidos/anomalias/${id}`, {}, token),
+  close: (id: number, estado: 'RESUELTA' | 'DESCARTADA', token: string) =>
+    request<Anomaly>(`/pedidos/anomalias/${id}/cierre`, { method: 'POST', body: JSON.stringify({ estado, origen: 'WEB' }) }, token),
+  alerts: (tracking: string, token: string) =>
+    request<ClientAnomaly[]>(`/pedidos/mios/tracking/${encodeURIComponent(tracking)}/alertas`, {}, token),
+  parameters: (key: string, token: string) =>
+    request<AnomalyParameters>('/pedidos/anomalias/parametros', {}, token, { 'X-DBA-Key': key }),
+  saveParameters: (values: AnomalyParameters, key: string, token: string) =>
+    request<AnomalyParameters>('/pedidos/anomalias/parametros', { method: 'PUT', body: JSON.stringify({ ...values, origen: 'WEB' }) }, token, { 'X-DBA-Key': key }),
+  pendingReceipts: (page: number, token: string) =>
+    request<PendingReceipt[]>(`/pedidos/anomalias/recepciones-pendientes?pagina=${page}`, {}, token),
+  confirmReceipt: (shipment: number, event: number, token: string) =>
+    request<void>(`/pedidos/${shipment}/recepcion-oficina`, { method: 'POST', body: JSON.stringify({ eventoLlegadaId: event, origen: 'WEB' }) }, token),
+};

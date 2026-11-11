@@ -416,3 +416,17 @@ export interface SyncResult {
 export interface SyncResponse {
   resultados: SyncResult[];
 }
+
+// HU-18. El portal recibe exclusivamente mensajes y contacto de oficina.
+export type AnomalyType = 'PERMANENCIA_EXCESIVA' | 'INACTIVIDAD_REPARTO' | 'REINTENTOS_ACUMULADOS' | 'SIN_CONFIRMACION_RECEPCION';
+export type AnomalyState = 'ACTIVA' | 'RESUELTA' | 'DESCARTADA';
+export interface ClientAnomaly { mensaje: string; oficina: string; telefono: string | null; enlaceLlamada: string | null; }
+export interface Anomaly {
+  id: number; envioId: number; numeroTracking: string; tipo: AnomalyType; estado: AnomalyState;
+  eventoOrigen: string; oficinaId: number | null; oficina: string | null; inicioUtc: string;
+  umbralHoras: number | null; intentos: number | null; creadaEn: string;
+  cerradaEn: string | null; cerradaPor: number | null; origenCierre: string | null;
+}
+export interface AnomalyPage { contenido: Anomaly[]; pagina: number; tamano: number; total: number; }
+export interface AnomalyParameters { permanenciaHoras: number; inactividadHoras: number; recepcionHoras: number; version: number; }
+export interface PendingReceipt { envioId: number; eventoLlegadaId: number; numeroTracking: string; oficina: string | null; llegada: string; }

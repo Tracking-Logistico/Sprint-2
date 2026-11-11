@@ -10,6 +10,7 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { VerifyPage } from "./pages/VerifyPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { AnomaliesPage } from "./pages/AnomaliesPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { OrdersPage } from "./pages/OrdersPage";
@@ -66,6 +67,7 @@ export default function App() {
             </Route>
             <Route element={<ProtectedRoute roles={["OPERADOR"]} />}>
               <Route path="/panel/envios" element={<ShipmentsPage />} />
+              <Route path="/panel/alertas" element={<AnomaliesPage />} />
             </Route>
             <Route
               element={<ProtectedRoute roles={["OPERADOR", "CONDUCTOR"]} />}
