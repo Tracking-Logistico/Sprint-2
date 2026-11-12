@@ -208,7 +208,8 @@ function ClientOrders() {
 function Status({ value }: { value: string }) {
   const styles: Record<string, string> = {
     SOLICITADO: "bg-secondary text-secondary-foreground border-border",
-    CORRECCION_SOLICITADA: "bg-secondary text-secondary-foreground border-border",
+    CORRECCION_SOLICITADA:
+      "bg-secondary text-secondary-foreground border-border",
     CREADO: "bg-accent text-accent-foreground border-border",
     ENTREGADO: "bg-primary/10 text-primary border-primary/30",
     RECHAZADO: "bg-destructive/10 text-destructive border-destructive/30",

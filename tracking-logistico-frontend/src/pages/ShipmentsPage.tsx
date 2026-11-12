@@ -15,6 +15,8 @@ import type { LabelResponse, OrderResponse } from "@/types/api";
 import { IncidentPanel } from "@/features/incidents/components/IncidentPanel";
 import { useIncidentTypes } from "@/features/incidents/hooks/useIncidents";
 import { ShipmentManagementActions } from "@/features/orders/components/ShipmentManagementActions";
+import { TraceabilityPanel } from "@/features/orders/components/TraceabilityPanel";
+import { LocationRegistrationForm } from "@/features/orders/components/LocationRegistrationForm";
 
 const statusNames: Record<string, string> = {
   SOLICITADO: "Validado · listo para activar",
@@ -259,6 +261,8 @@ export function ShipmentsPage() {
                 onChanged={load}
               />
             </div>
+            <TraceabilityPanel orderId={order.id} token={token!} />
+            <LocationRegistrationForm orderId={order.id} token={token!} />
             <IncidentPanel
               orderId={order.id}
               token={token}

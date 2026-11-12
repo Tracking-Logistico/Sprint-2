@@ -176,6 +176,81 @@ export interface ShipmentLocation {
   fechaRegistro: string;
 }
 
+export type LocationStage =
+  | "EN_BODEGA_ORIGEN"
+  | "EN_TRANSITO_VEHICULO"
+  | "LLEGADO_OFICINA_DESTINO"
+  | "EN_PUNTO_ENTREGA";
+export type CheckpointStage =
+  | "RECIBIDO_EN_ORIGEN"
+  | "EN_TRANSITO"
+  | "EN_REPARTO"
+  | "ENTREGADO";
+export interface LocationEvent {
+  id: number;
+  pedidoId: number;
+  numeroTracking: string;
+  etapa: LocationStage;
+  estadoPedido: OrderStatus;
+  ciudadId: number;
+  ciudad: string;
+  oficinaId?: number;
+  oficina?: string;
+  puntoEntregaId?: number;
+  puntoEntrega?: string;
+  direccion?: string;
+  vehiculoId?: string;
+  usuarioId: number;
+  origen: "WEB" | "APP_MOVIL" | "QR" | "SELECTOR";
+  fechaEvento: string;
+  fechaRegistro: string;
+  corrigeEventoId?: number;
+}
+export interface TraceEvent {
+  id: number;
+  pedidoId: number;
+  usuarioId?: number;
+  fecha: string;
+  tipoEvento: string;
+  campoObservado?: string;
+  detalle?: string;
+  latitud?: number;
+  longitud?: number;
+  ubicacion?: string;
+  etapa?: string;
+  estadoRegistro?: string;
+  eventoReferenciadoId?: number;
+}
+export interface TracePage {
+  content: TraceEvent[];
+  totalPages: number;
+  totalElements: number;
+  number: number;
+  size: number;
+}
+export interface TraceSummary {
+  pedidoId: number;
+  ultimoEvento?: TraceEvent;
+  ultimoPuntoControl?: CheckpointResponse;
+}
+export interface CheckpointResponse {
+  id: number;
+  pedidoId: number;
+  idEventoCliente: string;
+  etapa: CheckpointStage;
+  estadoAnterior?: OrderStatus;
+  estadoResultante?: OrderStatus;
+  latitud?: number;
+  longitud?: number;
+  precisionMetros?: number;
+  ubicacionConfiable: boolean;
+  origen: string;
+  estadoRegistro: string;
+  motivoRevision?: string;
+  fechaEvento: string;
+  fechaRegistro: string;
+}
+
 export interface ShipmentTrackingResponse {
   id: number;
   numeroPedido: string;
@@ -471,15 +546,51 @@ export interface SyncResponse {
 }
 
 // HU-18. El portal recibe exclusivamente mensajes y contacto de oficina.
-export type AnomalyType = 'PERMANENCIA_EXCESIVA' | 'INACTIVIDAD_REPARTO' | 'REINTENTOS_ACUMULADOS' | 'SIN_CONFIRMACION_RECEPCION';
-export type AnomalyState = 'ACTIVA' | 'RESUELTA' | 'DESCARTADA';
-export interface ClientAnomaly { mensaje: string; oficina: string; telefono: string | null; enlaceLlamada: string | null; }
-export interface Anomaly {
-  id: number; envioId: number; numeroTracking: string; tipo: AnomalyType; estado: AnomalyState;
-  eventoOrigen: string; oficinaId: number | null; oficina: string | null; inicioUtc: string;
-  umbralHoras: number | null; intentos: number | null; creadaEn: string;
-  cerradaEn: string | null; cerradaPor: number | null; origenCierre: string | null;
+export type AnomalyType =
+  | "PERMANENCIA_EXCESIVA"
+  | "INACTIVIDAD_REPARTO"
+  | "REINTENTOS_ACUMULADOS"
+  | "SIN_CONFIRMACION_RECEPCION";
+export type AnomalyState = "ACTIVA" | "RESUELTA" | "DESCARTADA";
+export interface ClientAnomaly {
+  mensaje: string;
+  oficina: string;
+  telefono: string | null;
+  enlaceLlamada: string | null;
 }
-export interface AnomalyPage { contenido: Anomaly[]; pagina: number; tamano: number; total: number; }
-export interface AnomalyParameters { permanenciaHoras: number; inactividadHoras: number; recepcionHoras: number; version: number; }
-export interface PendingReceipt { envioId: number; eventoLlegadaId: number; numeroTracking: string; oficina: string | null; llegada: string; }
+export interface Anomaly {
+  id: number;
+  envioId: number;
+  numeroTracking: string;
+  tipo: AnomalyType;
+  estado: AnomalyState;
+  eventoOrigen: string;
+  oficinaId: number | null;
+  oficina: string | null;
+  inicioUtc: string;
+  umbralHoras: number | null;
+  intentos: number | null;
+  creadaEn: string;
+  cerradaEn: string | null;
+  cerradaPor: number | null;
+  origenCierre: string | null;
+}
+export interface AnomalyPage {
+  contenido: Anomaly[];
+  pagina: number;
+  tamano: number;
+  total: number;
+}
+export interface AnomalyParameters {
+  permanenciaHoras: number;
+  inactividadHoras: number;
+  recepcionHoras: number;
+  version: number;
+}
+export interface PendingReceipt {
+  envioId: number;
+  eventoLlegadaId: number;
+  numeroTracking: string;
+  oficina: string | null;
+  llegada: string;
+}

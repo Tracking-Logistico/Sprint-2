@@ -158,7 +158,7 @@ export function ShipmentTrackingView({
                   key={`${movement.fecha}-${movement.tipo}-${index}`}
                   className="relative"
                 >
-                  <span className="absolute -left-[1.65rem] top-1 size-3 rounded-full bg-primary ring-4 ring-card" />
+                  <span className="absolute left-[-1.65rem] top-1 size-3 rounded-full bg-primary ring-4 ring-card" />
                   <p className="font-medium">{movement.descripcion}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {formatDate(movement.fecha)}
@@ -188,11 +188,8 @@ export function ShipmentTrackingView({
                     new Date(right.fechaEvento).getTime(),
                 )
                 .map((location) => (
-                  <li
-                    key={location.id}
-                    className="relative space-y-1"
-                  >
-                    <span className="absolute -left-[1.65rem] top-1 size-3 rounded-full bg-primary ring-4 ring-card" />
+                  <li key={location.id} className="relative space-y-1">
+                    <span className="absolute left-[-1.65rem] top-1 size-3 rounded-full bg-primary ring-4 ring-card" />
                     <p className="font-medium">
                       {locationLabels[location.etapa] ??
                         location.etapa.replaceAll("_", " ")}

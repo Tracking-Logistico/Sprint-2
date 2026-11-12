@@ -16,6 +16,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { useOfflineDeliveryQueue } from "@/features/driver/hooks/useOfflineDeliveryQueue";
 import { DriverDeliveryDetail } from "@/features/driver/components/DriverDeliveryDetail";
 import { DriverDeliveryList } from "@/features/driver/components/DriverDeliveryList";
+import { CheckpointQrScanner } from "@/features/driver/components/CheckpointQrScanner";
+import { LocationRegistrationForm } from "@/features/orders/components/LocationRegistrationForm";
 import type {
   DeliveryEvent,
   DeliveryResult,
@@ -66,7 +68,9 @@ export function DriverDashboard() {
           catalogRef.current = nextCatalog;
           catalogLoaded.current = true;
         } catch {
-          toast.warning("No se cargó el catálogo de novedades; intenta actualizar el panel.");
+          toast.warning(
+            "No se cargó el catálogo de novedades; intenta actualizar el panel.",
+          );
         }
       }
     } catch (e) {
@@ -203,10 +207,7 @@ export function DriverDashboard() {
       await refresh();
     } catch (error) {
       toast.error(
-        getApiError(
-          error,
-          "No fue posible registrar la verificación de edad.",
-        ),
+        getApiError(error, "No fue posible registrar la verificación de edad."),
       );
     } finally {
       setSubmitting(false);
@@ -316,6 +317,19 @@ export function DriverDashboard() {
               ageVerificationSaving={submitting}
             />
           </div>
+          {selected && token && (
+            <div className="mt-4">
+              <LocationRegistrationForm
+                orderId={selected.pedidoId}
+                token={token}
+              />
+              <CheckpointQrScanner
+                pedidoId={selected.pedidoId}
+                token={token}
+                onRegistered={refresh}
+              />
+            </div>
+          )}
         </section>
       </div>
 

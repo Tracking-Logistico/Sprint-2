@@ -131,12 +131,10 @@ export function DriverDeliveryDetail({
             {detail.estadoParada === "PENDIENTE" && (
               <Button
                 className="w-full sm:w-auto"
-                disabled={
-                  Boolean(
-                    detail.requiereVerificacionEdad &&
-                      !detail.resultadoVerificacionEdad,
-                  )
-                }
+                disabled={Boolean(
+                  detail.requiereVerificacionEdad &&
+                  !detail.resultadoVerificacionEdad,
+                )}
                 onClick={() => onRegister(delivery)}
               >
                 Registrar resultado
