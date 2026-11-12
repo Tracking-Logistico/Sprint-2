@@ -39,6 +39,7 @@ export function useShipmentTracking(
     useState<ReschedulingRangeResponse | null>(null);
   const [rescheduling, setRescheduling] = useState(false);
   const [reschedulingError, setReschedulingError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,7 +102,9 @@ export function useShipmentTracking(
       cancelled = true;
       window.clearTimeout(skeletonTimer);
     };
-  }, [token, tracking]);
+  }, [reloadKey, token, tracking]);
+
+  const reload = useCallback(() => setReloadKey((value) => value + 1), []);
 
   const submitRescheduling = useCallback(
     async (fecha: string) => {
@@ -131,5 +134,6 @@ export function useShipmentTracking(
     rescheduling,
     reschedulingError,
     submitRescheduling,
+    reload,
   };
 }

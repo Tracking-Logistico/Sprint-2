@@ -87,6 +87,8 @@ export type OrderStatus =
   | "DIRECCION_POR_VERIFICAR"
   | "DEVOLUCION_AL_REMITENTE"
   | "ENTREGA_FALLIDA_CERRADA"
+  | "PAUSADO"
+  | "CANCELADO"
   | "RECIBIDO"
   | "EN_VALIDACION"
   | "VALIDADO";
@@ -188,6 +190,16 @@ export interface ShipmentTrackingResponse {
     fecha: string;
   };
   ubicaciones?: ShipmentLocation[];
+  numeroTrackingDevolucion?: string;
+  referenciaDevolucion?: string;
+  fechaEntregaReprogramada?: string;
+}
+
+export interface ShipmentManagementResponse {
+  pedidoId: number;
+  numeroTracking: string;
+  estado: OrderStatus;
+  numeroTrackingDevolucion?: string | null;
   fechaEntregaReprogramada?: string;
   fechaLimiteVerificacionDireccion?: string;
 }

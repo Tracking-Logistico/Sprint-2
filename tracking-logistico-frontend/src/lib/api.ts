@@ -38,6 +38,7 @@ import type {
   UpdateNotificationPreferencePayload,
   AgeVerificationResult,
   AgeVerificationResponse,
+  ShipmentManagementResponse,
 } from "@/types/api";
 
 const API_URL = (
@@ -333,6 +334,38 @@ export const api = {
     request<ShipmentTrackingResponse>(
       `/pedidos/mios/tracking/${encodeURIComponent(tracking)}`,
       {},
+      token,
+    ),
+  pauseShipment: (
+    id: number,
+    motivo: string,
+    token: string,
+  ) =>
+    request<ShipmentManagementResponse>(
+      `/pedidos/${id}/pausar`,
+      {
+        method: "POST",
+        body: JSON.stringify({ motivo, confirmar: true }),
+      },
+      token,
+    ),
+  resumeShipment: (id: number, token: string) =>
+    request<ShipmentManagementResponse>(
+      `/pedidos/${id}/reanudar`,
+      { method: "POST" },
+      token,
+    ),
+  cancelShipment: (
+    id: number,
+    motivo: string,
+    token: string,
+  ) =>
+    request<ShipmentManagementResponse>(
+      `/pedidos/${id}/cancelar`,
+      {
+        method: "POST",
+        body: JSON.stringify({ motivo, confirmar: true }),
+      },
       token,
     ),
   getReschedulingRange: (tracking: string, token: string) =>

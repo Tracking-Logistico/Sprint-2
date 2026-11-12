@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ShipmentTrackingResponse } from "@/types/api";
 import { AnomalyBanner } from "./AnomalyBanner";
 import { RescheduleDeliveryForm } from "./RescheduleDeliveryForm";
+import { ShipmentManagementActions } from "./ShipmentManagementActions";
 
 const statusLabels: Record<string, string> = {
   SOLICITADO: "Pendiente de validación",
@@ -20,6 +21,8 @@ const statusLabels: Record<string, string> = {
   DIRECCION_POR_VERIFICAR: "Dirección por verificar",
   DEVOLUCION_AL_REMITENTE: "Devolución al remitente",
   ENTREGA_FALLIDA_CERRADA: "Entrega fallida cerrada",
+  PAUSADO: "Pausado",
+  CANCELADO: "Cancelado",
 };
 
 const locationLabels: Record<string, string> = {
@@ -47,6 +50,8 @@ export function ShipmentTrackingView({
   rescheduling,
   reschedulingError,
   submitRescheduling,
+  token,
+  reload,
 }: {
   shipment: ShipmentTrackingResponse | null;
   loading: boolean;
@@ -56,6 +61,8 @@ export function ShipmentTrackingView({
   rescheduling: boolean;
   reschedulingError: string;
   submitRescheduling: (fecha: string) => Promise<void>;
+  token?: string | null;
+  reload?: () => void;
 }) {
   if (loading || showSkeleton) {
     return (
@@ -114,6 +121,24 @@ export function ShipmentTrackingView({
           <p className="mt-2 text-sm text-muted-foreground">
             Entrega estimada: {formatDate(shipment.fechaEstimadaEntrega)}
           </p>
+          {token && (
+            <div className="mt-5 border-t border-border pt-4">
+              <ShipmentManagementActions
+                pedidoId={shipment.id}
+                estado={shipment.estado}
+                token={token}
+                onChanged={reload}
+              />
+            </div>
+          )}
+          {shipment.numeroTrackingDevolucion && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Devolución generada:{" "}
+              <span className="font-mono font-semibold text-foreground">
+                {shipment.numeroTrackingDevolucion}
+              </span>
+            </p>
+          )}
         </CardContent>
       </Card>
 

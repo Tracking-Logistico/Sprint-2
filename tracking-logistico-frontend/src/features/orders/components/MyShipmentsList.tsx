@@ -14,6 +14,8 @@ const statusLabels: Record<string, string> = {
   EN_REPARTO: "En reparto",
   ENTREGADO: "Entregado",
   RECHAZADO: "Rechazado",
+  PAUSADO: "Pausado",
+  CANCELADO: "Cancelado",
 };
 
 function formatDate(value?: string) {
@@ -79,6 +81,17 @@ export function MyShipmentsList({
                 >
                   Ver seguimiento: {shipment.numeroTracking}
                 </Link>
+              )}
+              {shipment.numeroTrackingOrigenDevolucion && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Devolución del envío{" "}
+                  <Link
+                    to={`/panel/pedidos/seguimiento/${encodeURIComponent(shipment.numeroTrackingOrigenDevolucion)}`}
+                    className="font-mono font-semibold text-primary underline underline-offset-4"
+                  >
+                    {shipment.numeroTrackingOrigenDevolucion}
+                  </Link>
+                </p>
               )}
             </div>
             <div className="sm:text-right">
