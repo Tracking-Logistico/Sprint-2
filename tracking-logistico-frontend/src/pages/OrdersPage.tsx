@@ -36,6 +36,7 @@ const emptyForm: ReceiveOrderPayload = {
   tipoServicio: "ESTANDAR",
   destinatarioNombre: "",
   destinatarioTelefono: "",
+  requiereVerificacionEdad: false,
 };
 const statusLabels: Record<string, string> = {
   SOLICITADO: "Pendiente de validación",
@@ -123,6 +124,7 @@ function ClientOrders() {
         tipoServicio: order.tipoServicio,
         destinatarioNombre: order.destinatarioNombre,
         destinatarioTelefono: order.destinatarioTelefono,
+        requiereVerificacionEdad: order.requiereVerificacionEdad ?? false,
       });
       setDialogOpen(true);
     } catch (err) {
@@ -206,7 +208,8 @@ function ClientOrders() {
 function Status({ value }: { value: string }) {
   const styles: Record<string, string> = {
     SOLICITADO: "bg-secondary text-secondary-foreground border-border",
-    CORRECCION_SOLICITADA: "bg-secondary text-secondary-foreground border-border",
+    CORRECCION_SOLICITADA:
+      "bg-secondary text-secondary-foreground border-border",
     CREADO: "bg-accent text-accent-foreground border-border",
     ENTREGADO: "bg-primary/10 text-primary border-primary/30",
     RECHAZADO: "bg-destructive/10 text-destructive border-destructive/30",

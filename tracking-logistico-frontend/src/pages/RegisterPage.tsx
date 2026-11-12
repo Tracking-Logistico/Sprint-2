@@ -45,6 +45,8 @@ export function RegisterPage() {
     telefono: "",
     direccion: "",
     ciudad: "",
+    numeroCedula: "",
+    fechaNacimiento: "",
     aceptoTerminos: false,
     aceptoPoliticaDatos: false,
   });
@@ -87,6 +89,33 @@ export function RegisterPage() {
     if (!form.aceptoTerminos || !form.aceptoPoliticaDatos) {
       const msg =
         "Debes aceptar los Términos y la Política de Tratamiento de Datos.";
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+    if (!/^[1-9][0-9 .]{5,19}$/.test(form.numeroCedula) ||
+        form.numeroCedula.replace(/[ .]/g, "").length < 6 ||
+        form.numeroCedula.replace(/[ .]/g, "").length > 10) {
+      const msg = "El número de cédula debe tener entre 6 y 10 dígitos y no puede empezar por cero.";
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+    if (!form.fechaNacimiento) {
+      const msg = "La fecha de nacimiento es obligatoria.";
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+    const birthDate = new Date(`${form.fechaNacimiento}T00:00:00`);
+    if (Number.isNaN(birthDate.getTime()) || birthDate.toISOString().slice(0, 10) !== form.fechaNacimiento) {
+      const msg = "La fecha de nacimiento no es válida.";
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+    if (birthDate > new Date()) {
+      const msg = "La fecha de nacimiento no puede ser futura.";
       setError(msg);
       toast.error(msg);
       return;

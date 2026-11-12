@@ -16,9 +16,12 @@ import { useAuthStore } from "@/stores/authStore";
 import { useOfflineDeliveryQueue } from "@/features/driver/hooks/useOfflineDeliveryQueue";
 import { DriverDeliveryDetail } from "@/features/driver/components/DriverDeliveryDetail";
 import { DriverDeliveryList } from "@/features/driver/components/DriverDeliveryList";
+import { CheckpointQrScanner } from "@/features/driver/components/CheckpointQrScanner";
+import { LocationRegistrationForm } from "@/features/orders/components/LocationRegistrationForm";
 import type {
   DeliveryEvent,
   DeliveryResult,
+  AgeVerificationResult,
   DriverDelivery,
   DriverProgress,
   NoveltyOption,
@@ -65,7 +68,9 @@ export function DriverDashboard() {
           catalogRef.current = nextCatalog;
           catalogLoaded.current = true;
         } catch {
-          toast.warning("No se cargó el catálogo de novedades; intenta actualizar el panel.");
+          toast.warning(
+            "No se cargó el catálogo de novedades; intenta actualizar el panel.",
+          );
         }
       }
     } catch (e) {
@@ -130,6 +135,7 @@ export function DriverDashboard() {
       );
       return;
     }
+
     if (result === "ENTREGADO") {
       setNovelty("");
       setReason("");
@@ -180,6 +186,29 @@ export function DriverDashboard() {
       } else {
         toast.error(getApiError(e, "No fue posible registrar el resultado."));
       }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function registerAgeVerification(
+    pedidoId: number,
+    resultado: AgeVerificationResult,
+  ) {
+    if (!token || submitting) return;
+    setSubmitting(true);
+    try {
+      await api.registerAgeVerification(pedidoId, resultado, token);
+      toast.success(
+        resultado === "CUMPLE"
+          ? "Verificación de mayoría de edad registrada."
+          : "Verificación no aprobada. Se inició el retorno a bodega.",
+      );
+      await refresh();
+    } catch (error) {
+      toast.error(
+        getApiError(error, "No fue posible registrar la verificación de edad."),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -277,13 +306,30 @@ export function DriverDashboard() {
           tab={tab}
           onTabChange={setTab}
           onSelect={setSelected}
-          onRegister={openResult}
         />
 
         <section>
           <div className="mt-6">
-            <DriverDeliveryDetail delivery={selected} onRegister={openResult} />
+            <DriverDeliveryDetail
+              delivery={selected}
+              onRegister={openResult}
+              onAgeVerification={registerAgeVerification}
+              ageVerificationSaving={submitting}
+            />
           </div>
+          {selected && token && (
+            <div className="mt-4">
+              <LocationRegistrationForm
+                orderId={selected.pedidoId}
+                token={token}
+              />
+              <CheckpointQrScanner
+                pedidoId={selected.pedidoId}
+                token={token}
+                onRegistered={refresh}
+              />
+            </div>
+          )}
         </section>
       </div>
 

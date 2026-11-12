@@ -63,8 +63,7 @@ export function acceptedSyncResults(results: SyncResult[]) {
     results
       .filter(
         (result) =>
-          result.estado === "APLICADO" ||
-          result.estado === "DUPLICADO",
+          result.estado === "APLICADO" || result.estado === "DUPLICADO",
       )
       .map((result) => result.idEventoCliente),
   );

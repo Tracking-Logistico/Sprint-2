@@ -7,3 +7,4 @@
 *.sql.zst
 respaldo_*.sql
 backup_*.sql
+*docs

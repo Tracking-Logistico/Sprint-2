@@ -29,6 +29,16 @@ export interface RegisterPayload {
   versionTerminos: string;
   aceptoPoliticaDatos: boolean;
   versionPoliticaDatos: string;
+  numeroCedula: string;
+  fechaNacimiento: string;
+}
+
+export interface IdentityProfile {
+  registrada: boolean;
+  numeroCedulaEnmascarado: string | null;
+  fechaNacimiento: string | null;
+  edad: number | null;
+  editable: boolean;
 }
 
 export interface ClientResponse {
@@ -77,6 +87,8 @@ export type OrderStatus =
   | "DIRECCION_POR_VERIFICAR"
   | "DEVOLUCION_AL_REMITENTE"
   | "ENTREGA_FALLIDA_CERRADA"
+  | "PAUSADO"
+  | "CANCELADO"
   | "RECIBIDO"
   | "EN_VALIDACION"
   | "VALIDADO";
@@ -97,6 +109,7 @@ export interface ReceiveOrderPayload {
   tipoServicio: ServiceType;
   destinatarioNombre: string;
   destinatarioTelefono: string;
+  requiereVerificacionEdad?: boolean;
 }
 
 export interface ValidateOrderPayload {
@@ -137,6 +150,9 @@ export interface MyOrderResponse {
   estado: OrderStatus;
   fechaCreacion: string;
   fechaEstimadaEntrega?: string;
+  numeroTrackingOrigenDevolucion?: string;
+  referenciaDevolucion?: string;
+  requiereVerificacionEdad?: boolean;
 }
 
 export interface ShipmentTrackingMovement {
@@ -144,6 +160,95 @@ export interface ShipmentTrackingMovement {
   fecha: string;
   tipo: "ESTADO" | "PUNTO_CONTROL" | "NOVEDAD";
   descripcion: string;
+}
+
+export interface ShipmentLocation {
+  id: number;
+  etapa: string;
+  estadoPedido: string;
+  ciudad?: string;
+  oficina?: string;
+  puntoEntrega?: string;
+  direccion?: string;
+  vehiculoId?: string;
+  origen: string;
+  fechaEvento: string;
+  fechaRegistro: string;
+}
+
+export type LocationStage =
+  | "EN_BODEGA_ORIGEN"
+  | "EN_TRANSITO_VEHICULO"
+  | "LLEGADO_OFICINA_DESTINO"
+  | "EN_PUNTO_ENTREGA";
+export type CheckpointStage =
+  | "RECIBIDO_EN_ORIGEN"
+  | "EN_TRANSITO"
+  | "EN_REPARTO"
+  | "ENTREGADO";
+export interface LocationEvent {
+  id: number;
+  pedidoId: number;
+  numeroTracking: string;
+  etapa: LocationStage;
+  estadoPedido: OrderStatus;
+  ciudadId: number;
+  ciudad: string;
+  oficinaId?: number;
+  oficina?: string;
+  puntoEntregaId?: number;
+  puntoEntrega?: string;
+  direccion?: string;
+  vehiculoId?: string;
+  usuarioId: number;
+  origen: "WEB" | "APP_MOVIL" | "QR" | "SELECTOR";
+  fechaEvento: string;
+  fechaRegistro: string;
+  corrigeEventoId?: number;
+}
+export interface TraceEvent {
+  id: number;
+  pedidoId: number;
+  usuarioId?: number;
+  fecha: string;
+  tipoEvento: string;
+  campoObservado?: string;
+  detalle?: string;
+  latitud?: number;
+  longitud?: number;
+  ubicacion?: string;
+  etapa?: string;
+  estadoRegistro?: string;
+  eventoReferenciadoId?: number;
+}
+export interface TracePage {
+  content: TraceEvent[];
+  totalPages: number;
+  totalElements: number;
+  number: number;
+  size: number;
+}
+export interface TraceSummary {
+  pedidoId: number;
+  ultimoEvento?: TraceEvent;
+  ultimoPuntoControl?: CheckpointResponse;
+}
+export interface CheckpointResponse {
+  id: number;
+  pedidoId: number;
+  idEventoCliente: string;
+  etapa: CheckpointStage;
+  estadoAnterior?: OrderStatus;
+  estadoResultante?: OrderStatus;
+  latitud?: number;
+  longitud?: number;
+  precisionMetros?: number;
+  ubicacionConfiable: boolean;
+  origen: string;
+  estadoRegistro: string;
+  motivoRevision?: string;
+  fechaEvento: string;
+  fechaRegistro: string;
 }
 
 export interface ShipmentTrackingResponse {
@@ -159,6 +264,17 @@ export interface ShipmentTrackingResponse {
     mensaje: string;
     fecha: string;
   };
+  ubicaciones?: ShipmentLocation[];
+  numeroTrackingDevolucion?: string;
+  referenciaDevolucion?: string;
+  fechaEntregaReprogramada?: string;
+}
+
+export interface ShipmentManagementResponse {
+  pedidoId: number;
+  numeroTracking: string;
+  estado: OrderStatus;
+  numeroTrackingDevolucion?: string | null;
   fechaEntregaReprogramada?: string;
   fechaLimiteVerificacionDireccion?: string;
 }
@@ -340,6 +456,18 @@ export interface DriverDeliveryDetail extends DriverDelivery {
   observacionesValidacion: string | null;
   fechaEntregaReprogramada: string | null;
   ultimosEventos: DriverHistoryEvent[];
+  requiereVerificacionEdad?: boolean;
+  resultadoVerificacionEdad?: "CUMPLE" | "NO_CUMPLE" | null;
+}
+
+export type AgeVerificationResult = "CUMPLE" | "NO_CUMPLE";
+export interface AgeVerificationResponse {
+  pedidoId: number;
+  resultado: AgeVerificationResult;
+  estadoPedido: string;
+  fechaVerificacion: string;
+  puedeEntregarse: boolean;
+  duplicado: boolean;
 }
 
 export interface DriverHistoryEvent {
@@ -418,15 +546,51 @@ export interface SyncResponse {
 }
 
 // HU-18. El portal recibe exclusivamente mensajes y contacto de oficina.
-export type AnomalyType = 'PERMANENCIA_EXCESIVA' | 'INACTIVIDAD_REPARTO' | 'REINTENTOS_ACUMULADOS' | 'SIN_CONFIRMACION_RECEPCION';
-export type AnomalyState = 'ACTIVA' | 'RESUELTA' | 'DESCARTADA';
-export interface ClientAnomaly { mensaje: string; oficina: string; telefono: string | null; enlaceLlamada: string | null; }
-export interface Anomaly {
-  id: number; envioId: number; numeroTracking: string; tipo: AnomalyType; estado: AnomalyState;
-  eventoOrigen: string; oficinaId: number | null; oficina: string | null; inicioUtc: string;
-  umbralHoras: number | null; intentos: number | null; creadaEn: string;
-  cerradaEn: string | null; cerradaPor: number | null; origenCierre: string | null;
+export type AnomalyType =
+  | "PERMANENCIA_EXCESIVA"
+  | "INACTIVIDAD_REPARTO"
+  | "REINTENTOS_ACUMULADOS"
+  | "SIN_CONFIRMACION_RECEPCION";
+export type AnomalyState = "ACTIVA" | "RESUELTA" | "DESCARTADA";
+export interface ClientAnomaly {
+  mensaje: string;
+  oficina: string;
+  telefono: string | null;
+  enlaceLlamada: string | null;
 }
-export interface AnomalyPage { contenido: Anomaly[]; pagina: number; tamano: number; total: number; }
-export interface AnomalyParameters { permanenciaHoras: number; inactividadHoras: number; recepcionHoras: number; version: number; }
-export interface PendingReceipt { envioId: number; eventoLlegadaId: number; numeroTracking: string; oficina: string | null; llegada: string; }
+export interface Anomaly {
+  id: number;
+  envioId: number;
+  numeroTracking: string;
+  tipo: AnomalyType;
+  estado: AnomalyState;
+  eventoOrigen: string;
+  oficinaId: number | null;
+  oficina: string | null;
+  inicioUtc: string;
+  umbralHoras: number | null;
+  intentos: number | null;
+  creadaEn: string;
+  cerradaEn: string | null;
+  cerradaPor: number | null;
+  origenCierre: string | null;
+}
+export interface AnomalyPage {
+  contenido: Anomaly[];
+  pagina: number;
+  tamano: number;
+  total: number;
+}
+export interface AnomalyParameters {
+  permanenciaHoras: number;
+  inactividadHoras: number;
+  recepcionHoras: number;
+  version: number;
+}
+export interface PendingReceipt {
+  envioId: number;
+  eventoLlegadaId: number;
+  numeroTracking: string;
+  oficina: string | null;
+  llegada: string;
+}

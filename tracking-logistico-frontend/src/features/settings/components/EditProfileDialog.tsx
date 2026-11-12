@@ -56,6 +56,10 @@ export function EditProfileDialog({
               }
             />
           </div>
+          <p className="text-xs text-muted-foreground">
+            La cédula y la fecha de nacimiento se gestionan por separado y no
+            pueden modificarse desde este formulario.
+          </p>
           <div className="grid gap-2">
             <Label htmlFor="telefono">Teléfono</Label>
             <Input

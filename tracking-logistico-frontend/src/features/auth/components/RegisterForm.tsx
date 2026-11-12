@@ -25,6 +25,8 @@ export interface RegisterFormValues {
   telefono: string;
   direccion: string;
   ciudad: string;
+  numeroCedula: string;
+  fechaNacimiento: string;
   aceptoTerminos: boolean;
   aceptoPoliticaDatos: boolean;
 }
@@ -113,6 +115,28 @@ export function RegisterForm({
             value={form.direccion}
             onChange={(e) => onChange("direccion", e.target.value)}
           />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormInputField
+              label="Número de cédula"
+              name="numeroCedula"
+              required
+              inputMode="numeric"
+              pattern="[1-9][0-9 .]{5,19}"
+              hint="Entre 6 y 10 dígitos; puedes usar puntos o espacios."
+              value={form.numeroCedula}
+              onChange={(e) => onChange("numeroCedula", e.target.value)}
+            />
+            <FormInputField
+              label="Fecha de nacimiento"
+              name="fechaNacimiento"
+              type="date"
+              required
+              max={new Date().toISOString().slice(0, 10)}
+              value={form.fechaNacimiento}
+              onChange={(e) => onChange("fechaNacimiento", e.target.value)}
+            />
+          </div>
 
           <Separator className="my-1 bg-slate-100" />
 

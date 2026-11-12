@@ -13,6 +13,8 @@ import { DeactivateAccountDialog } from "@/features/settings/components/Deactiva
 import { EditProfileDialog } from "@/features/settings/components/EditProfileDialog";
 import { ProfileSummary } from "@/features/settings/components/ProfileSummary";
 import { NotificationPreferences } from "@/features/settings/components/NotificationPreferences";
+import { IdentityProfileCard } from "@/features/settings/components/IdentityProfileCard";
+import type { IdentityProfile } from "@/types/api";
 
 interface Perfil {
   nombre: string;
@@ -42,6 +44,7 @@ export function SettingsPage() {
   });
   const [loading, setLoading] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [identity, setIdentity] = useState<IdentityProfile | null>(null);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(
     requiresPasswordChange,
   );
@@ -51,13 +54,15 @@ export function SettingsPage() {
     if (role === "CLIENTE" && accessToken && !requiresPasswordChange) {
       api
         .myProfile(accessToken)
-        .then((profileResponse) =>
+        .then((profileResponse) => {
           setProfile({
             nombre: profileResponse.nombre,
             telefono: profileResponse.telefono ?? "",
             direccion: profileResponse.direccion ?? "",
-          }),
-        )
+          });
+          return api.getMyIdentity(accessToken);
+        })
+        .then(setIdentity)
         .catch((error: unknown) => {
           toast.error(
             getApiError(error, "No fue posible cargar tus datos personales."),
@@ -159,6 +164,15 @@ export function SettingsPage() {
               onEdit={role === "CLIENTE" ? () => setProfileDialogOpen(true) : undefined}
             />
           </div>
+          {role === "CLIENTE" && (
+            <div className="mt-6">
+              <IdentityProfileCard
+                identity={identity}
+                token={accessToken}
+                onSaved={setIdentity}
+              />
+            </div>
+          )}
           {role === "CLIENTE" && (
             <div className="mt-6">
               <NotificationPreferences

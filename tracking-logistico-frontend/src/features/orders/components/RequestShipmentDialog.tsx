@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { FormField } from "@/components/shared/FormField";
 import type { ReceiveOrderPayload, ServiceType } from "@/types/api";
 interface Props {
@@ -183,6 +185,21 @@ export function RequestShipmentDialog({
                 <option value="EXPRESS">Express (prioridad alta)</option>
                 <option value="PROGRAMADO">Programado (prioridad baja)</option>
               </select>
+            </div>
+            <div className="flex items-start gap-3 rounded-lg border p-3">
+              <Checkbox
+                id="requiereVerificacionEdad"
+                checked={Boolean(form.requiereVerificacionEdad)}
+                onCheckedChange={(checked) =>
+                  update("requiereVerificacionEdad", checked === true)
+                }
+              />
+              <Label
+                htmlFor="requiereVerificacionEdad"
+                className="cursor-pointer text-sm leading-5"
+              >
+                Verificación de edad obligatoria (18+)
+              </Label>
             </div>
           </form>
         </ScrollArea>

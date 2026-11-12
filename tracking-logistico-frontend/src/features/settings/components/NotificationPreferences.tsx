@@ -67,7 +67,7 @@ export function NotificationPreferences({
               {(["EMAIL", "SMS", "AMBOS"] as const).map((value) => (
                 <Label
                   key={value}
-                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border p-3 has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50"
+                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border p-3 has-checked:border-emerald-600 has-checked:bg-emerald-50"
                 >
                   <RadioGroupItem
                     name="notification-channel"

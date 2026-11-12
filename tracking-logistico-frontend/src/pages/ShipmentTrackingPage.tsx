@@ -53,6 +53,8 @@ export function ShipmentTrackingPage() {
       {!tracking.error && (
         <ShipmentTrackingView
           {...tracking}
+          token={token}
+          reload={tracking.reload}
           submitRescheduling={async (fecha) => {
             await tracking.submitRescheduling(fecha);
             toast.success("Entrega reprogramada correctamente.");

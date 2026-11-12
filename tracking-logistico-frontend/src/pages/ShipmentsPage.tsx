@@ -14,6 +14,9 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import type { LabelResponse, OrderResponse } from "@/types/api";
 import { IncidentPanel } from "@/features/incidents/components/IncidentPanel";
 import { useIncidentTypes } from "@/features/incidents/hooks/useIncidents";
+import { ShipmentManagementActions } from "@/features/orders/components/ShipmentManagementActions";
+import { TraceabilityPanel } from "@/features/orders/components/TraceabilityPanel";
+import { LocationRegistrationForm } from "@/features/orders/components/LocationRegistrationForm";
 
 const statusNames: Record<string, string> = {
   SOLICITADO: "Validado · listo para activar",
@@ -250,6 +253,16 @@ export function ShipmentsPage() {
                 </Button>
               )}
             </div>
+            <div className="mt-4 border-t border-border pt-4">
+              <ShipmentManagementActions
+                pedidoId={order.id}
+                estado={order.estado}
+                token={token}
+                onChanged={load}
+              />
+            </div>
+            <TraceabilityPanel orderId={order.id} token={token!} />
+            <LocationRegistrationForm orderId={order.id} token={token!} />
             <IncidentPanel
               orderId={order.id}
               token={token}

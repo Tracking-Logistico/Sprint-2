@@ -1,10 +1,16 @@
 import type {
   ApiErrorShape,
-  AnomalyPage, Anomaly, AnomalyParameters, ClientAnomaly, PendingReceipt, AnomalyState, AnomalyType,
+  AnomalyPage,
+  Anomaly,
+  ClientAnomaly,
+  PendingReceipt,
+  AnomalyState,
+  AnomalyType,
   ClientResponse,
   DriverResponse,
   LabelResponse,
   LoginResponse,
+  IdentityProfile,
   OrderResponse,
   OrderEvent,
   ReceiveOrderPayload,
@@ -35,6 +41,15 @@ import type {
   RegisterIncidentResponse,
   NotificationPreference,
   UpdateNotificationPreferencePayload,
+  AgeVerificationResult,
+  AgeVerificationResponse,
+  ShipmentManagementResponse,
+  LocationEvent,
+  LocationStage,
+  TracePage,
+  TraceSummary,
+  CheckpointResponse,
+  CheckpointStage,
 } from "@/types/api";
 
 const API_URL = (
@@ -138,6 +153,22 @@ async function request<T>(
   return parseResponse<T>(response);
 }
 
+async function requestFile(
+  path: string,
+  token: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: { Authorization: "Bearer " + token },
+  });
+  if (!response.ok) {
+    await parseResponse<never>(response);
+  }
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const filename =
+    disposition.match(/filename="([^"]+)"/)?.[1] ?? "trazabilidad";
+  return { blob: await response.blob(), filename };
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<LoginResponse>("/auth/login", {
@@ -193,6 +224,21 @@ export const api = {
           nuevaPassword,
           confirmarPassword,
         }),
+      },
+      token,
+    ),
+  getMyIdentity: (token: string) =>
+    request<IdentityProfile>("/clientes/me/identidad", {}, token),
+  completeMyIdentity: (
+    payload: { numeroCedula: string; fechaNacimiento: string },
+    token: string,
+  ) =>
+    request<IdentityProfile>(
+      "/clientes/me/identidad",
+      {
+        method: "PUT",
+        headers: { "X-Origen": "WEB" },
+        body: JSON.stringify(payload),
       },
       token,
     ),
@@ -317,6 +363,99 @@ export const api = {
       {},
       token,
     ),
+  pauseShipment: (id: number, motivo: string, token: string) =>
+    request<ShipmentManagementResponse>(
+      `/pedidos/${id}/pausar`,
+      {
+        method: "POST",
+        body: JSON.stringify({ motivo, confirmar: true }),
+      },
+      token,
+    ),
+  resumeShipment: (id: number, token: string) =>
+    request<ShipmentManagementResponse>(
+      `/pedidos/${id}/reanudar`,
+      { method: "POST" },
+      token,
+    ),
+  cancelShipment: (id: number, motivo: string, token: string) =>
+    request<ShipmentManagementResponse>(
+      `/pedidos/${id}/cancelar`,
+      {
+        method: "POST",
+        body: JSON.stringify({ motivo, confirmar: true }),
+      },
+      token,
+    ),
+  listTraceability: (
+    id: number,
+    filters: { tipo?: string; desde?: string; hasta?: string; page?: number },
+    token: string,
+  ) => {
+    const params = new URLSearchParams({
+      page: String(filters.page ?? 0),
+      size: "20",
+    });
+    if (filters.tipo) params.set("tipo", filters.tipo);
+    if (filters.desde) params.set("desde", filters.desde);
+    if (filters.hasta) params.set("hasta", filters.hasta);
+    return request<TracePage>(
+      `/pedidos/${id}/trazabilidad?${params}`,
+      {},
+      token,
+    );
+  },
+  traceSummary: (id: number, token: string) =>
+    request<TraceSummary>(`/pedidos/${id}/trazabilidad/resumen`, {}, token),
+  exportTraceability: (
+    id: number,
+    format: "pdf" | "csv",
+    filters: { tipo?: string; desde?: string; hasta?: string },
+    token: string,
+  ) => {
+    const params = new URLSearchParams({ formato: format });
+    if (filters.tipo) params.set("tipo", filters.tipo);
+    if (filters.desde) params.set("desde", filters.desde);
+    if (filters.hasta) params.set("hasta", filters.hasta);
+    return requestFile(`/pedidos/${id}/trazabilidad/exportar?${params}`, token);
+  },
+  registerLocation: (
+    id: number,
+    payload: {
+      etapa: LocationStage;
+      origen: "SELECTOR";
+      idEvento: string;
+      ciudadId: number;
+      oficinaId?: number;
+      puntoEntregaId?: number;
+      vehiculoId?: string;
+      fechaEvento: string;
+    },
+    token: string,
+  ) =>
+    request<LocationEvent>(
+      `/pedidos/${id}/ubicaciones`,
+      { method: "POST", body: JSON.stringify(payload) },
+      token,
+    ),
+  registerCheckpoint: (
+    id: number,
+    payload: {
+      codigoQr: string;
+      etapa: CheckpointStage;
+      idEventoCliente: string;
+      fechaDispositivo: string;
+      latitud?: number;
+      longitud?: number;
+      precisionMetros?: number;
+    },
+    token: string,
+  ) =>
+    request<CheckpointResponse>(
+      `/pedidos/${id}/checkpoints`,
+      { method: "POST", body: JSON.stringify(payload) },
+      token,
+    ),
   getReschedulingRange: (tracking: string, token: string) =>
     request<ReschedulingRangeResponse>(
       `/pedidos/mios/tracking/${encodeURIComponent(tracking)}/reprogramacion/rango`,
@@ -421,6 +560,19 @@ export const api = {
       { method: "POST", body: JSON.stringify(evento) },
       token,
     ),
+  registerAgeVerification: (
+    pedidoId: number,
+    resultado: AgeVerificationResult,
+    token: string,
+  ) =>
+    request<AgeVerificationResponse>(
+      `/conductor/panel/entregas/${pedidoId}/verificacion-edad`,
+      {
+        method: "POST",
+        body: JSON.stringify({ resultado, origen: "EN_LINEA" }),
+      },
+      token,
+    ),
   syncDriverDeliveries: (events: OfflineDeliveryEvent[], token: string) =>
     request<SyncResponse>(
       "/conductor/panel/entregas/sincronizacion",
@@ -431,26 +583,6 @@ export const api = {
         }),
       },
       token,
-    ),
-
-  adminUsers: (dbaKey: string) =>
-    request<UserResponse[]>("/admin/usuarios", {}, undefined, {
-      "X-DBA-Key": dbaKey,
-    }),
-  adminChangeRole: (
-    id: number,
-    body: {
-      rol: "CLIENTE" | "OPERADOR" | "CONDUCTOR";
-      licencia?: string;
-      codigoEmpleado?: string;
-    },
-    dbaKey: string,
-  ) =>
-    request<UserResponse>(
-      `/admin/usuarios/${id}/rol`,
-      { method: "PATCH", body: JSON.stringify(body) },
-      undefined,
-      { "X-DBA-Key": dbaKey },
     ),
 };
 
@@ -488,19 +620,44 @@ export function getApiError(
 }
 
 export const anomaliesApi = {
-  list: (state: AnomalyState, type: AnomalyType | '', page: number, token: string) =>
-    request<AnomalyPage>(`/pedidos/anomalias?estado=${state}&pagina=${page}&tamano=20${type ? `&tipo=${type}` : ''}`, {}, token),
-  detail: (id: number, token: string) => request<Anomaly>(`/pedidos/anomalias/${id}`, {}, token),
-  close: (id: number, estado: 'RESUELTA' | 'DESCARTADA', token: string) =>
-    request<Anomaly>(`/pedidos/anomalias/${id}/cierre`, { method: 'POST', body: JSON.stringify({ estado, origen: 'WEB' }) }, token),
+  list: (
+    state: AnomalyState,
+    type: AnomalyType | "",
+    page: number,
+    token: string,
+  ) =>
+    request<AnomalyPage>(
+      `/pedidos/anomalias?estado=${state}&pagina=${page}&tamano=20${type ? `&tipo=${type}` : ""}`,
+      {},
+      token,
+    ),
+  detail: (id: number, token: string) =>
+    request<Anomaly>(`/pedidos/anomalias/${id}`, {}, token),
+  close: (id: number, estado: "RESUELTA" | "DESCARTADA", token: string) =>
+    request<Anomaly>(
+      `/pedidos/anomalias/${id}/cierre`,
+      { method: "POST", body: JSON.stringify({ estado, origen: "WEB" }) },
+      token,
+    ),
   alerts: (tracking: string, token: string) =>
-    request<ClientAnomaly[]>(`/pedidos/mios/tracking/${encodeURIComponent(tracking)}/alertas`, {}, token),
-  parameters: (key: string, token: string) =>
-    request<AnomalyParameters>('/pedidos/anomalias/parametros', {}, token, { 'X-DBA-Key': key }),
-  saveParameters: (values: AnomalyParameters, key: string, token: string) =>
-    request<AnomalyParameters>('/pedidos/anomalias/parametros', { method: 'PUT', body: JSON.stringify({ ...values, origen: 'WEB' }) }, token, { 'X-DBA-Key': key }),
+    request<ClientAnomaly[]>(
+      `/pedidos/mios/tracking/${encodeURIComponent(tracking)}/alertas`,
+      {},
+      token,
+    ),
   pendingReceipts: (page: number, token: string) =>
-    request<PendingReceipt[]>(`/pedidos/anomalias/recepciones-pendientes?pagina=${page}`, {}, token),
+    request<PendingReceipt[]>(
+      `/pedidos/anomalias/recepciones-pendientes?pagina=${page}`,
+      {},
+      token,
+    ),
   confirmReceipt: (shipment: number, event: number, token: string) =>
-    request<void>(`/pedidos/${shipment}/recepcion-oficina`, { method: 'POST', body: JSON.stringify({ eventoLlegadaId: event, origen: 'WEB' }) }, token),
+    request<void>(
+      `/pedidos/${shipment}/recepcion-oficina`,
+      {
+        method: "POST",
+        body: JSON.stringify({ eventoLlegadaId: event, origen: "WEB" }),
+      },
+      token,
+    ),
 };

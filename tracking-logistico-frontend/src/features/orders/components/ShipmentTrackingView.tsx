@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ShipmentTrackingResponse } from "@/types/api";
 import { AnomalyBanner } from "./AnomalyBanner";
 import { RescheduleDeliveryForm } from "./RescheduleDeliveryForm";
+import { ShipmentManagementActions } from "./ShipmentManagementActions";
 
 const statusLabels: Record<string, string> = {
   SOLICITADO: "Pendiente de validación",
@@ -20,6 +21,15 @@ const statusLabels: Record<string, string> = {
   DIRECCION_POR_VERIFICAR: "Dirección por verificar",
   DEVOLUCION_AL_REMITENTE: "Devolución al remitente",
   ENTREGA_FALLIDA_CERRADA: "Entrega fallida cerrada",
+  PAUSADO: "Pausado",
+  CANCELADO: "Cancelado",
+};
+
+const locationLabels: Record<string, string> = {
+  EN_BODEGA_ORIGEN: "En Bodega Origen",
+  EN_TRANSITO_VEHICULO: "En Tránsito",
+  LLEGADO_OFICINA_DESTINO: "Llegado a Oficina Destino",
+  EN_PUNTO_ENTREGA: "En Punto de Entrega",
 };
 
 function formatDate(value?: string) {
@@ -40,6 +50,8 @@ export function ShipmentTrackingView({
   rescheduling,
   reschedulingError,
   submitRescheduling,
+  token,
+  reload,
 }: {
   shipment: ShipmentTrackingResponse | null;
   loading: boolean;
@@ -49,6 +61,8 @@ export function ShipmentTrackingView({
   rescheduling: boolean;
   reschedulingError: string;
   submitRescheduling: (fecha: string) => Promise<void>;
+  token?: string | null;
+  reload?: () => void;
 }) {
   if (loading || showSkeleton) {
     return (
@@ -107,6 +121,24 @@ export function ShipmentTrackingView({
           <p className="mt-2 text-sm text-muted-foreground">
             Entrega estimada: {formatDate(shipment.fechaEstimadaEntrega)}
           </p>
+          {token && (
+            <div className="mt-5 border-t border-border pt-4">
+              <ShipmentManagementActions
+                pedidoId={shipment.id}
+                estado={shipment.estado}
+                token={token}
+                onChanged={reload}
+              />
+            </div>
+          )}
+          {shipment.numeroTrackingDevolucion && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Devolución generada:{" "}
+              <span className="font-mono font-semibold text-foreground">
+                {shipment.numeroTrackingDevolucion}
+              </span>
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -126,7 +158,7 @@ export function ShipmentTrackingView({
                   key={`${movement.fecha}-${movement.tipo}-${index}`}
                   className="relative"
                 >
-                  <span className="absolute -left-[1.65rem] top-1 size-3 rounded-full bg-primary ring-4 ring-card" />
+                  <span className="absolute left-[-1.65rem] top-1 size-3 rounded-full bg-primary ring-4 ring-card" />
                   <p className="font-medium">{movement.descripcion}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {formatDate(movement.fecha)}
@@ -134,6 +166,52 @@ export function ShipmentTrackingView({
                 </div>
               ))}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Trazabilidad de ubicación</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!shipment.ubicaciones?.length ? (
+            <p className="text-sm text-muted-foreground">
+              Aún no hay eventos de ubicación registrados.
+            </p>
+          ) : (
+            <ol className="space-y-5 border-l-2 border-primary/30 pl-4">
+              {[...shipment.ubicaciones]
+                .sort(
+                  (left, right) =>
+                    new Date(left.fechaEvento).getTime() -
+                    new Date(right.fechaEvento).getTime(),
+                )
+                .map((location) => (
+                  <li key={location.id} className="relative space-y-1">
+                    <span className="absolute left-[-1.65rem] top-1 size-3 rounded-full bg-primary ring-4 ring-card" />
+                    <p className="font-medium">
+                      {locationLabels[location.etapa] ??
+                        location.etapa.replaceAll("_", " ")}
+                    </p>
+                    <p className="text-sm">
+                      {[
+                        location.oficina,
+                        location.puntoEntrega,
+                        location.ciudad,
+                        location.vehiculoId &&
+                          `Vehículo ${location.vehiculoId}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "Ubicación no especificada"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(location.fechaEvento)} · Origen:{" "}
+                      {location.origen}
+                    </p>
+                  </li>
+                ))}
+            </ol>
           )}
         </CardContent>
       </Card>
