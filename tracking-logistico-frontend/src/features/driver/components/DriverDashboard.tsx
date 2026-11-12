@@ -39,6 +39,7 @@ export function DriverDashboard() {
   const [progress, setProgress] = useState<DriverProgress | null>(null);
   const [catalog, setCatalog] = useState<NoveltyOption[]>([]);
   const [selected, setSelected] = useState<DriverDelivery | null>(null);
+  const [resultOpen, setResultOpen] = useState(false);
   const [result, setResult] = useState<DeliveryResult>("ENTREGADO");
   const [novelty, setNovelty] = useState("");
   const [reason, setReason] = useState("");
@@ -100,6 +101,7 @@ export function DriverDashboard() {
 
   function openResult(delivery: DriverDelivery) {
     setSelected(delivery);
+    setResultOpen(true);
     setResult("ENTREGADO");
     setNovelty("");
     setReason("");
@@ -305,7 +307,10 @@ export function DriverDashboard() {
           loading={loading}
           tab={tab}
           onTabChange={setTab}
-          onSelect={setSelected}
+          onSelect={(delivery) => {
+            setResultOpen(false);
+            setSelected(delivery);
+          }}
         />
 
         <section>
@@ -334,8 +339,8 @@ export function DriverDashboard() {
       </div>
 
       <Dialog
-        open={Boolean(selected)}
-        onOpenChange={(open) => !open && setSelected(null)}
+        open={Boolean(selected) && resultOpen}
+        onOpenChange={setResultOpen}
       >
         <DialogContent>
           <DialogHeader>
@@ -409,7 +414,7 @@ export function DriverDashboard() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelected(null)}>
+            <Button variant="outline" onClick={() => setResultOpen(false)}>
               Cancelar
             </Button>
             <Button disabled={submitting} onClick={() => void submitResult()}>
