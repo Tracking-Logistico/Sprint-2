@@ -36,6 +36,7 @@ const emptyForm: ReceiveOrderPayload = {
   tipoServicio: "ESTANDAR",
   destinatarioNombre: "",
   destinatarioTelefono: "",
+  requiereVerificacionEdad: false,
 };
 const statusLabels: Record<string, string> = {
   SOLICITADO: "Pendiente de validación",
@@ -123,6 +124,7 @@ function ClientOrders() {
         tipoServicio: order.tipoServicio,
         destinatarioNombre: order.destinatarioNombre,
         destinatarioTelefono: order.destinatarioTelefono,
+        requiereVerificacionEdad: order.requiereVerificacionEdad ?? false,
       });
       setDialogOpen(true);
     } catch (err) {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, X, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { queryAssistant } from "./assistantApi";
 
 type Message = { id: string; role: "user" | "assistant"; text: string };
@@ -65,7 +66,7 @@ export function AssistantWidget({ token }: { token: string }) {
     </div>
     <form className="space-y-2 border-t p-4" onSubmit={(event) => void submit(event)}>
       <label className="text-sm" htmlFor="assistant-question">Tu consulta</label>
-      <input id="assistant-question" className="block min-h-11 w-full rounded-md border bg-background px-3 py-2 text-sm" value={text} onChange={(event) => setText(event.target.value)} maxLength={500} required disabled={pending} autoComplete="off" />
+      <Input id="assistant-question" className="min-h-11" value={text} onChange={(event) => setText(event.target.value)} maxLength={500} required disabled={pending} autoComplete="off" />
       <div className="flex items-center justify-between gap-2"><span className="text-xs text-muted-foreground">{text.length}/500</span><Button type="submit" disabled={pending || !text.trim()}>Consultar</Button></div>
     </form>
   </aside>;

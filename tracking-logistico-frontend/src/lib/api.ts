@@ -5,6 +5,7 @@ import type {
   DriverResponse,
   LabelResponse,
   LoginResponse,
+  IdentityProfile,
   OrderResponse,
   OrderEvent,
   ReceiveOrderPayload,
@@ -35,6 +36,8 @@ import type {
   RegisterIncidentResponse,
   NotificationPreference,
   UpdateNotificationPreferencePayload,
+  AgeVerificationResult,
+  AgeVerificationResponse,
 } from "@/types/api";
 
 const API_URL = (
@@ -193,6 +196,21 @@ export const api = {
           nuevaPassword,
           confirmarPassword,
         }),
+      },
+      token,
+    ),
+  getMyIdentity: (token: string) =>
+    request<IdentityProfile>("/clientes/me/identidad", {}, token),
+  completeMyIdentity: (
+    payload: { numeroCedula: string; fechaNacimiento: string },
+    token: string,
+  ) =>
+    request<IdentityProfile>(
+      "/clientes/me/identidad",
+      {
+        method: "PUT",
+        headers: { "X-Origen": "WEB" },
+        body: JSON.stringify(payload),
       },
       token,
     ),
@@ -419,6 +437,19 @@ export const api = {
     request<DeliveryResultResponse>(
       `/conductor/panel/entregas/${pedidoId}/resultado`,
       { method: "POST", body: JSON.stringify(evento) },
+      token,
+    ),
+  registerAgeVerification: (
+    pedidoId: number,
+    resultado: AgeVerificationResult,
+    token: string,
+  ) =>
+    request<AgeVerificationResponse>(
+      `/conductor/panel/entregas/${pedidoId}/verificacion-edad`,
+      {
+        method: "POST",
+        body: JSON.stringify({ resultado, origen: "EN_LINEA" }),
+      },
       token,
     ),
   syncDriverDeliveries: (events: OfflineDeliveryEvent[], token: string) =>

@@ -26,7 +26,6 @@ interface DriverDeliveryListProps {
   tab: "pending" | "completed";
   onTabChange: (tab: "pending" | "completed") => void;
   onSelect: (delivery: DriverDelivery) => void;
-  onRegister: (delivery: DriverDelivery) => void;
 }
 
 export function DriverDeliveryList({
@@ -35,7 +34,6 @@ export function DriverDeliveryList({
   tab,
   onTabChange,
   onSelect,
-  onRegister,
 }: DriverDeliveryListProps) {
   const pending = deliveries.filter(
     (item) => item.estadoParada === "PENDIENTE",
@@ -99,9 +97,9 @@ export function DriverDeliveryList({
                 {delivery.estadoParada === "PENDIENTE" && (
                   <Button
                     className="mt-2 w-full sm:w-auto"
-                    onClick={() => onRegister(delivery)}
+                    onClick={() => onSelect(delivery)}
                   >
-                    Registrar resultado
+                    Ver detalle y registrar
                   </Button>
                 )}
               </CardContent>

@@ -3,16 +3,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDriverDeliveryDetail } from "@/features/driver/hooks/useDriverDeliveryDetail";
-import type { DriverDelivery } from "@/types/api";
+import type { AgeVerificationResult, DriverDelivery } from "@/types/api";
 
 interface DriverDeliveryDetailProps {
   delivery: DriverDelivery | null;
   onRegister: (delivery: DriverDelivery) => void;
+  onAgeVerification: (
+    pedidoId: number,
+    resultado: AgeVerificationResult,
+  ) => Promise<void>;
+  ageVerificationSaving: boolean;
 }
 
 export function DriverDeliveryDetail({
   delivery,
   onRegister,
+  onAgeVerification,
+  ageVerificationSaving,
 }: DriverDeliveryDetailProps) {
   const { detail, loading, error } = useDriverDeliveryDetail(
     delivery?.pedidoId ?? null,
@@ -83,9 +90,53 @@ export function DriverDeliveryDetail({
                 <p>{detail.indicacionesAcceso}</p>
               </div>
             )}
+            {detail.requiereVerificacionEdad && (
+              <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-950">
+                <p className="font-semibold">
+                  Requiere verificación de edad (18+)
+                </p>
+                <p className="text-sm">
+                  Registra el resultado antes de cerrar la entrega.
+                </p>
+                {!detail.resultadoVerificacionEdad ? (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      disabled={ageVerificationSaving}
+                      onClick={() =>
+                        void onAgeVerification(detail.pedidoId, "CUMPLE")
+                      }
+                    >
+                      Mayor de edad verificado
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      disabled={ageVerificationSaving}
+                      onClick={() =>
+                        void onAgeVerification(detail.pedidoId, "NO_CUMPLE")
+                      }
+                    >
+                      Verificación no aprobada
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium">
+                    Resultado registrado:{" "}
+                    {detail.resultadoVerificacionEdad === "CUMPLE"
+                      ? "Mayor de edad verificado"
+                      : "Verificación no aprobada"}
+                  </p>
+                )}
+              </div>
+            )}
             {detail.estadoParada === "PENDIENTE" && (
               <Button
                 className="w-full sm:w-auto"
+                disabled={
+                  Boolean(
+                    detail.requiereVerificacionEdad &&
+                      !detail.resultadoVerificacionEdad,
+                  )
+                }
                 onClick={() => onRegister(delivery)}
               >
                 Registrar resultado

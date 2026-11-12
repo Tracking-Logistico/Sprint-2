@@ -29,6 +29,16 @@ export interface RegisterPayload {
   versionTerminos: string;
   aceptoPoliticaDatos: boolean;
   versionPoliticaDatos: string;
+  numeroCedula: string;
+  fechaNacimiento: string;
+}
+
+export interface IdentityProfile {
+  registrada: boolean;
+  numeroCedulaEnmascarado: string | null;
+  fechaNacimiento: string | null;
+  edad: number | null;
+  editable: boolean;
 }
 
 export interface ClientResponse {
@@ -97,6 +107,7 @@ export interface ReceiveOrderPayload {
   tipoServicio: ServiceType;
   destinatarioNombre: string;
   destinatarioTelefono: string;
+  requiereVerificacionEdad?: boolean;
 }
 
 export interface ValidateOrderPayload {
@@ -137,6 +148,9 @@ export interface MyOrderResponse {
   estado: OrderStatus;
   fechaCreacion: string;
   fechaEstimadaEntrega?: string;
+  numeroTrackingOrigenDevolucion?: string;
+  referenciaDevolucion?: string;
+  requiereVerificacionEdad?: boolean;
 }
 
 export interface ShipmentTrackingMovement {
@@ -144,6 +158,20 @@ export interface ShipmentTrackingMovement {
   fecha: string;
   tipo: "ESTADO" | "PUNTO_CONTROL" | "NOVEDAD";
   descripcion: string;
+}
+
+export interface ShipmentLocation {
+  id: number;
+  etapa: string;
+  estadoPedido: string;
+  ciudad?: string;
+  oficina?: string;
+  puntoEntrega?: string;
+  direccion?: string;
+  vehiculoId?: string;
+  origen: string;
+  fechaEvento: string;
+  fechaRegistro: string;
 }
 
 export interface ShipmentTrackingResponse {
@@ -159,6 +187,7 @@ export interface ShipmentTrackingResponse {
     mensaje: string;
     fecha: string;
   };
+  ubicaciones?: ShipmentLocation[];
   fechaEntregaReprogramada?: string;
   fechaLimiteVerificacionDireccion?: string;
 }
@@ -340,6 +369,18 @@ export interface DriverDeliveryDetail extends DriverDelivery {
   observacionesValidacion: string | null;
   fechaEntregaReprogramada: string | null;
   ultimosEventos: DriverHistoryEvent[];
+  requiereVerificacionEdad?: boolean;
+  resultadoVerificacionEdad?: "CUMPLE" | "NO_CUMPLE" | null;
+}
+
+export type AgeVerificationResult = "CUMPLE" | "NO_CUMPLE";
+export interface AgeVerificationResponse {
+  pedidoId: number;
+  resultado: AgeVerificationResult;
+  estadoPedido: string;
+  fechaVerificacion: string;
+  puedeEntregarse: boolean;
+  duplicado: boolean;
 }
 
 export interface DriverHistoryEvent {

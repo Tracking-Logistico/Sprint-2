@@ -22,6 +22,13 @@ const statusLabels: Record<string, string> = {
   ENTREGA_FALLIDA_CERRADA: "Entrega fallida cerrada",
 };
 
+const locationLabels: Record<string, string> = {
+  EN_BODEGA_ORIGEN: "En Bodega Origen",
+  EN_TRANSITO_VEHICULO: "En Tránsito",
+  LLEGADO_OFICINA_DESTINO: "Llegado a Oficina Destino",
+  EN_PUNTO_ENTREGA: "En Punto de Entrega",
+};
+
 function formatDate(value?: string) {
   return value
     ? new Date(value).toLocaleString("es-CO", {
@@ -134,6 +141,55 @@ export function ShipmentTrackingView({
                 </div>
               ))}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Trazabilidad de ubicación</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!shipment.ubicaciones?.length ? (
+            <p className="text-sm text-muted-foreground">
+              Aún no hay eventos de ubicación registrados.
+            </p>
+          ) : (
+            <ol className="space-y-5 border-l-2 border-primary/30 pl-4">
+              {[...shipment.ubicaciones]
+                .sort(
+                  (left, right) =>
+                    new Date(left.fechaEvento).getTime() -
+                    new Date(right.fechaEvento).getTime(),
+                )
+                .map((location) => (
+                  <li
+                    key={location.id}
+                    className="relative space-y-1"
+                  >
+                    <span className="absolute -left-[1.65rem] top-1 size-3 rounded-full bg-primary ring-4 ring-card" />
+                    <p className="font-medium">
+                      {locationLabels[location.etapa] ??
+                        location.etapa.replaceAll("_", " ")}
+                    </p>
+                    <p className="text-sm">
+                      {[
+                        location.oficina,
+                        location.puntoEntrega,
+                        location.ciudad,
+                        location.vehiculoId &&
+                          `Vehículo ${location.vehiculoId}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "Ubicación no especificada"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(location.fechaEvento)} · Origen:{" "}
+                      {location.origen}
+                    </p>
+                  </li>
+                ))}
+            </ol>
           )}
         </CardContent>
       </Card>
